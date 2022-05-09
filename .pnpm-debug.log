@@ -1,0 +1,14 @@
+{
+  "0 debug pnpm:scope": {
+    "selected": 1
+  },
+  "1 error pnpm": {
+    "code": "ERR_PNPM_NO_PKG_MANIFEST",
+    "err": {
+      "name": "pnpm",
+      "message": "No package.json found in /home/liontao/work/mista",
+      "code": "ERR_PNPM_NO_PKG_MANIFEST",
+      "stack": "pnpm: No package.json found in /home/liontao/work/mista\n    at handler (/home/liontao/.nvm/versions/node/v16.15.0/lib/node_modules/pnpm/dist/pnpm.cjs:121313:17)\n    at async /home/liontao/.nvm/versions/node/v16.15.0/lib/node_modules/pnpm/dist/pnpm.cjs:176187:21\n    at async run (/home/liontao/.nvm/versions/node/v16.15.0/lib/node_modules/pnpm/dist/pnpm.cjs:176161:34)\n    at async runPnpm (/home/liontao/.nvm/versions/node/v16.15.0/lib/node_modules/pnpm/dist/pnpm.cjs:176379:5)\n    at async /home/liontao/.nvm/versions/node/v16.15.0/lib/node_modules/pnpm/dist/pnpm.cjs:176371:7"
+    }
+  }
+}

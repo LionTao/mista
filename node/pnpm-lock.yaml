@@ -30,7 +30,10 @@ importers:
       typescript: registry.npmjs.org/typescript/4.6.4
 
   packages/pns-daemon:
-    specifiers: {}
+    specifiers:
+      async-rwlock: ^1.1.1
+    dependencies:
+      async-rwlock: 1.1.1
 
   packages/trajectory-assembler:
     specifiers:
@@ -39,6 +42,11 @@ importers:
       '@mista/distributed-index': link:../distributed-index
 
 packages:
+
+  /async-rwlock/1.1.1:
+    resolution: {integrity: sha512-K4ecpHLAc0Jul4dMb1KLpukblQmHxD5/HNgkTuO3sQ9oLLtVENCJVk7+b0wMj1K89cqnjGkTsAvOb83lCfoKwA==}
+    engines: {node: '>=8.0.0'}
+    dev: false
 
   registry.npmjs.org/0http/3.1.2:
     resolution: {integrity: sha512-Cs/dy31/kvPNZnTxEJCyrWEqwl4LOF5Xv9+/tButVWTLJWiFZiECWzOcZKkctmJFWTCd0k0vL5bwmEOmxDJqfQ==, registry: https://mirrors.sjtug.sjtu.edu.cn/npm-registry, tarball: https://registry.npmjs.org/0http/-/0http-3.1.2.tgz}
