@@ -1,7 +1,7 @@
-import { DaprServer, HttpMethod } from "@dapr/dapr/src/index";
+import {DaprServer, HttpMethod} from "dapr-client";
 import RBush from "rbush";
-import { PNSEntry } from "../../types/PNSEntry";
-import { getRes0Indexes, h3SetToMultiPolygon } from "h3-js";
+import {PNSEntry} from "../../types/PNSEntry";
+import {getRes0Indexes, h3SetToMultiPolygon} from "h3-js";
 import * as proj4 from "proj4";
 import RWLock from "async-rwlock";
 
@@ -21,14 +21,14 @@ async function update(data: UpdateData): Promise<void> {
     await lock.writeLock();
     rtree.remove(h3ToBBox(data.mother), (a, b) => a.id === b.id);
     rtree.load(data.children.map(h3ToBBox));
-    lock.unlock;
+    lock.unlock();
     return;
 }
 
 async function query(): Promise<string> {
     await lock.readLock();
     const res = JSON.stringify(rtree.toJSON());
-    lock.unlock;
+    lock.unlock();
     return res;
 }
 
@@ -60,14 +60,13 @@ function h3ToBBox(h: string): PNSEntry {
         maxX = Math.max(x, maxX);
         maxY = Math.max(y, maxY);
     })
-    const res: PNSEntry = {
+    return {
         minX: minX,
         minY: minY,
         maxX: maxX,
         maxY: maxY,
         id: h
-    }
-    return res;
+    };
 }
 
 start().catch((e) => {

@@ -1,13 +1,16 @@
-import {AbstractActor,ActorProxyBuilder,ActorId} from "@dapr/dapr/src/index";
+import {AbstractActor, HttpMethod} from "dapr-client";
 import TrajectoryAssemblerInterface from "./TrajectoryAssemblerInterface";
 import {Point} from "../../../types/Point";
-import {isNil, update} from "lodash-es";
+import {isNil, throttle} from "lodash-es";
 import {Segment} from "../../../types/Segment";
 import RBush, {BBox} from "rbush";
-import {DistributedIndexInterface,DistributedIndexImpl} from "@mista/distributed-index/src/index"
+import {DistributedIndexImpl, DistributedIndexInterface} from "@mista/distributed-index/src/index"
 import * as proj4 from "proj4";
-import DaprClient from "@dapr/dapr/src/implementation/Client/DaprClient";
+import {DaprClient} from "dapr-client";
 import {PNSEntry} from "../../../types/PNSEntry";
+import RWLock from "async-rwlock";
+import ActorProxyBuilder from "dapr-client/actors/client/ActorProxyBuilder";
+import ActorId from "dapr-client/actors/ActorId";
 
 
 const TRAJETORY_STORE_NAME = "trajectory";
@@ -15,12 +18,14 @@ const TRAJETORY_STORE_NAME = "trajectory";
 export default class TrajectoryAssemblerImpl extends AbstractActor implements TrajectoryAssemblerInterface {
     private PNS: RBush<PNSEntry>;
     private previousPoint: Point | null;
+    private lock: RWLock;
 
 
     constructor(daprClient: DaprClient, id: ActorId) {
-        super(daprClient,id);
-        this.PNS=new RBush<PNSEntry>();
-        this.previousPoint=null;
+        super(daprClient, id);
+        this.PNS = new RBush<PNSEntry>();
+        this.previousPoint = null;
+        this.lock = new RWLock();
     }
 
     async onActivate() {
@@ -41,7 +46,7 @@ export default class TrajectoryAssemblerImpl extends AbstractActor implements Tr
             }
             // send to index
             this.sendSegment(newSegment)
-                .catch(err=>{
+                .catch(err => {
                     console.error(err);
                 })
         }
@@ -58,7 +63,7 @@ export default class TrajectoryAssemblerImpl extends AbstractActor implements Tr
         return;
     }
 
-    async sendSegment(s:Segment){
+    async sendSegment(s: Segment) {
         const client = this.getDaprClient();
         const builder = new ActorProxyBuilder<DistributedIndexInterface>(DistributedIndexImpl, client);
 
@@ -72,31 +77,34 @@ export default class TrajectoryAssemblerImpl extends AbstractActor implements Tr
         const minY = Math.min(startY, endY);
         const maxX = Math.max(startX, endX);
         const maxY = Math.max(startY, endY);
-        const box:BBox={
+        const box: BBox = {
             minX: minX,
             minY: minY,
             maxX: maxX,
             maxY: maxY
         }
         let targets = this.PNS.search(box);
-        while (isNil(targets)){
+        while (isNil(targets)) {
             await this.updatePNS();
         }
         let tasks = Array<Promise<boolean>>();
-        for(let t of targets){
+        for (let t of targets) {
             const actor = builder.build(new ActorId(t.id));
             tasks.push(actor.acceptNewSegment(s));
         }
         let statusCode = await Promise.all(tasks);
-        if (statusCode.includes(false)){
+        if (statusCode.includes(false)) {
             await this.updatePNS();
         }
         return;
     }
 
-    async updatePNS():Promise<void>{
-        // TODO: 更新PNS
-        return
-    }
+    updatePNS = throttle(async () => {
+        await this.lock.writeLock()
+        const newTree = String(await this.getDaprClient().invoker.invoke("pns-damon", "query", HttpMethod.GET));
+        this.PNS.clear();
+        this.PNS.load(JSON.parse(newTree));
+        this.lock.unlock()
+    }, 1000)
 }
 

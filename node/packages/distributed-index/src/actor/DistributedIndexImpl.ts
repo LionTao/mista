@@ -1,4 +1,4 @@
-import {AbstractActor, ActorId, ActorProxyBuilder} from "@dapr/dapr/src/index";
+import {AbstractActor} from "dapr-client";
 import {Segment} from "../../../types/Segment";
 import RBush, {BBox} from "rbush";
 import DistributedIndexInterface from "./DistributedIndexInterface";
@@ -7,7 +7,9 @@ import {geoToH3, h3GetResolution, h3ToCenterChild, kRing} from "h3-js";
 
 import * as proj4 from "proj4";
 import {isNil} from "lodash-es";
-import DaprClient from "@dapr/dapr/src/implementation/Client/DaprClient";
+import {DaprClient} from "dapr-client";
+import ActorProxyBuilder from "dapr-client/actors/client/ActorProxyBuilder";
+import ActorId from "dapr-client/actors/ActorId";
 
 const SPLIT_TRESHOLED = 2000;
 
@@ -84,7 +86,6 @@ export default class DistributedIndexImpl extends AbstractActor implements Distr
 
     async bulkLoadInternal(segments: Array<Segment>): Promise<void> {
         if (this.isRetired) {
-            //TODO:异步发送到下一层
             this.bulkLoadInternal(segments)
                 .catch(err => {
                     console.error(err);

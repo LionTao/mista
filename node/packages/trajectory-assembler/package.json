@@ -10,6 +10,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@mista/distributed-index": "workspace:^1.0.0"
+    "@mista/distributed-index": "workspace:^1.0.0",
+    "async-rwlock": "^1.1.1"
   }
 }

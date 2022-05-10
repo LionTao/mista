@@ -1,0 +1,22 @@
+{
+  "name": "@mista/query-service",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "tsc --project ./tsconfig.json --noEmit && esno ./src/index.ts",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@mista/distributed-index": "workspace:^1.0.0",
+    "async-rwlock": "^1.1.1",
+    "fastify": "^3.29.0",
+    "jsts": "^2.9.0"
+  },
+  "devDependencies": {
+    "@types/jsts": "^0.17.12"
+  }
+}
