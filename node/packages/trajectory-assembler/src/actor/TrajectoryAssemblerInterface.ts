@@ -1,6 +1,6 @@
-import {Point} from "../../../types/Point";
+import {TrajectoryPoint} from "../../../types/TrajectoryPoint";
 
 
 export default interface TrajectoryAssemblerInterface {
-    acceptNewPoint(p:Point):Promise<void>;
+    acceptNewPoint(p:TrajectoryPoint):Promise<void>;
 }

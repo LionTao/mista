@@ -12,6 +12,8 @@ from dacite import from_dict
 from dapr.clients import DaprClient
 from dapr.conf import global_settings
 from flask import Flask, request, jsonify
+from flask_dapr.app import DaprApp
+
 
 
 @dataclass(eq=True, frozen=True)
@@ -30,10 +32,12 @@ class TrajectorySegment:
 
 
 app = Flask(__name__)
+dapr = DaprApp(app)
 
 dapr_host = global_settings.DAPR_RUNTIME_HOST
 dapr_port = global_settings.DAPR_HTTP_PORT
 store_name = "trajectory"
+PORT=3011 
 
 
 @dataclass
@@ -94,4 +98,4 @@ if __name__ != '__main__':
     app.logger.handlers = gunicorn_logger.handlers
     app.logger.setLevel(gunicorn_logger.level)
 else:
-    app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', global_settings.HTTP_APP_PORT)))
+    app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', PORT )))

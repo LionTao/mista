@@ -16,6 +16,7 @@
     "rbush": "^3.0.1"
   },
   "devDependencies": {
+    "@types/lodash": "^4.14.182",
     "@types/lodash-es": "^4.17.6",
     "@types/node": "16",
     "@types/proj4": "^2.5.2",

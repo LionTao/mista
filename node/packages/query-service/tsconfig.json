@@ -1,8 +1,21 @@
 {
   "compilerOptions": {
+    "strict": true,
+    "allowJs": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "sourceMap": true,
+    "declaration": true,
     "esModuleInterop": true,
-    "skipLibCheck": true
+    "moduleResolution": "node",
+    "allowSyntheticDefaultImports": true,
+    "lib": [
+      "es2019",
+      "dom"
+    ]
   },
-  "include": ["src/**/*.ts"],
-  "exclude": ["node_modues"]
+  "include": ["src", "decs.d.ts"],
+//  "exclude": ["node_modules"]
 }

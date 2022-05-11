@@ -4,19 +4,19 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "tsc --project ./tsconfig.json --noEmit && esno ./src/index.ts",
+    "serve": "dapr run --app-id query-service --app-protocol http --app-port 3007 --dapr-http-port 3006 --config ../../../config.yaml --components-path ../../../components -- esno ./src/index.ts",
+    "check": "tsc -p ./tsconfig.json --noEmit ",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@mista/distributed-index": "workspace:^1.0.0",
+    "@mista/distributed-index": "workspace:*",
+    "@turf/bbox": "^6.5.0",
+    "@turf/buffer": "^6.5.0",
+    "@turf/helpers": "^6.5.0",
     "async-rwlock": "^1.1.1",
-    "fastify": "^3.29.0",
-    "jsts": "^2.9.0"
-  },
-  "devDependencies": {
-    "@types/jsts": "^0.17.12"
+    "fastify": "^3.29.0"
   }
 }

@@ -4,13 +4,15 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "send": "dapr run --app-id ingress --app-protocol http --app-port 3003 --dapr-http-port 3002 --config ../../../config.yaml --components-path ../../../components -- esno ./src/index.ts",
+    "check": "tsc -p ./tsconfig.json --noEmit ",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@mista/trajectory-assembler": "workspace:^1.0.0",
+    "@mista/trajectory-assembler": "workspace:*",
     "fastify": "^3.29.0"
   }
 }

@@ -4,13 +4,15 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "serve": "dapr run --app-id trajectory-assembler --app-protocol http --app-port 3009 --dapr-http-port 3008 --config ../../../config.yaml --components-path ../../../components -- esno ./src/index.ts",
+    "check": "tsc -p ./tsconfig.json --noEmit ",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@mista/distributed-index": "workspace:^1.0.0",
+    "@mista/distributed-index": "workspace:*",
     "async-rwlock": "^1.1.1"
   }
 }

@@ -1,7 +1,7 @@
-import {Point} from "./Point";
+import {TrajectoryPoint} from "./TrajectoryPoint";
 
 export interface Segment {
     id:string;
-    start:Point;
-    end:Point;
+    start:TrajectoryPoint;
+    end:TrajectoryPoint;
 }

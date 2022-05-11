@@ -4,6 +4,7 @@ importers:
 
   .:
     specifiers:
+      '@types/lodash': ^4.14.182
       '@types/lodash-es': ^4.17.6
       '@types/node': '16'
       '@types/proj4': ^2.5.2
@@ -18,11 +19,12 @@ importers:
     dependencies:
       dapr-client: 2.1.0
       h3-js: registry.npmjs.org/h3-js/3.7.2
-      lodash-es: registry.npmjs.org/lodash-es/4.17.21
+      lodash-es: 4.17.21
       proj4: registry.npmjs.org/proj4/2.8.0
       rbush: registry.npmjs.org/rbush/3.0.1
     devDependencies:
-      '@types/lodash-es': registry.npmjs.org/@types/lodash-es/4.17.6
+      '@types/lodash': 4.14.182
+      '@types/lodash-es': 4.17.6
       '@types/node': 16.11.33
       '@types/proj4': registry.npmjs.org/@types/proj4/2.5.2
       '@types/rbush': registry.npmjs.org/@types/rbush/3.0.0
@@ -30,11 +32,14 @@ importers:
       typescript: registry.npmjs.org/typescript/4.6.4
 
   packages/distributed-index:
-    specifiers: {}
+    specifiers:
+      '@mista/pns-daemon': workspace:*
+    dependencies:
+      '@mista/pns-daemon': link:../pns-daemon
 
   packages/ingress:
     specifiers:
-      '@mista/trajectory-assembler': workspace:^1.0.0
+      '@mista/trajectory-assembler': workspace:*
       fastify: ^3.29.0
     dependencies:
       '@mista/trajectory-assembler': link:../trajectory-assembler
@@ -48,22 +53,23 @@ importers:
 
   packages/query-service:
     specifiers:
-      '@mista/distributed-index': workspace:^1.0.0
-      '@types/jsts': ^0.17.12
+      '@mista/distributed-index': workspace:*
+      '@turf/bbox': ^6.5.0
+      '@turf/buffer': ^6.5.0
+      '@turf/helpers': ^6.5.0
       async-rwlock: ^1.1.1
       fastify: ^3.29.0
-      jsts: ^2.9.0
     dependencies:
       '@mista/distributed-index': link:../distributed-index
+      '@turf/bbox': 6.5.0
+      '@turf/buffer': 6.5.0
+      '@turf/helpers': 6.5.0
       async-rwlock: 1.1.1
       fastify: 3.29.0
-      jsts: 2.9.0
-    devDependencies:
-      '@types/jsts': 0.17.12
 
   packages/trajectory-assembler:
     specifiers:
-      '@mista/distributed-index': workspace:^1.0.0
+      '@mista/distributed-index': workspace:*
       async-rwlock: ^1.1.1
     dependencies:
       '@mista/distributed-index': link:../distributed-index
@@ -161,10 +167,64 @@ packages:
     resolution: {integrity: sha1-p3c2C1s5oaLlEG+OhY8v0tBgxXA=}
     dev: false
 
-  /@types/jsts/0.17.12:
-    resolution: {integrity: sha512-CVRlGD914G8Lce/r6PBDCNX5KSfdI5ZXCJ4cefy09/5gZBMEy3rcv5prjJuSHusfDaKMnqWc9Asz4I08q/YrAQ==}
+  /@turf/bbox/6.5.0:
+    resolution: {integrity: sha512-RBbLaao5hXTYyyg577iuMtDB8ehxMlUqHEJiMs8jT1GHkFhr6sYre3lmLsPeYEi/ZKj5TP5tt7fkzNdJ4GIVyw==}
     dependencies:
-      '@types/openlayers': 4.6.18
+      '@turf/helpers': 6.5.0
+      '@turf/meta': 6.5.0
+    dev: false
+
+  /@turf/buffer/6.5.0:
+    resolution: {integrity: sha512-qeX4N6+PPWbKqp1AVkBVWFerGjMYMUyencwfnkCesoznU6qvfugFHNAngNqIBVnJjZ5n8IFyOf+akcxnrt9sNg==}
+    dependencies:
+      '@turf/bbox': 6.5.0
+      '@turf/center': 6.5.0
+      '@turf/helpers': 6.5.0
+      '@turf/meta': 6.5.0
+      '@turf/projection': 6.5.0
+      d3-geo: 1.7.1
+      turf-jsts: 1.2.3
+    dev: false
+
+  /@turf/center/6.5.0:
+    resolution: {integrity: sha512-T8KtMTfSATWcAX088rEDKjyvQCBkUsLnK/Txb6/8WUXIeOZyHu42G7MkdkHRoHtwieLdduDdmPLFyTdG5/e7ZQ==}
+    dependencies:
+      '@turf/bbox': 6.5.0
+      '@turf/helpers': 6.5.0
+    dev: false
+
+  /@turf/clone/6.5.0:
+    resolution: {integrity: sha512-mzVtTFj/QycXOn6ig+annKrM6ZlimreKYz6f/GSERytOpgzodbQyOgkfwru100O1KQhhjSudKK4DsQ0oyi9cTw==}
+    dependencies:
+      '@turf/helpers': 6.5.0
+    dev: false
+
+  /@turf/helpers/6.5.0:
+    resolution: {integrity: sha512-VbI1dV5bLFzohYYdgqwikdMVpe7pJ9X3E+dlr425wa2/sMJqYDhTO++ec38/pcPvPE6oD9WEEeU3Xu3gza+VPw==}
+    dev: false
+
+  /@turf/meta/6.5.0:
+    resolution: {integrity: sha512-RrArvtsV0vdsCBegoBtOalgdSOfkBrTJ07VkpiCnq/491W67hnMWmDu7e6Ztw0C3WldRYTXkg3SumfdzZxLBHA==}
+    dependencies:
+      '@turf/helpers': 6.5.0
+    dev: false
+
+  /@turf/projection/6.5.0:
+    resolution: {integrity: sha512-/Pgh9mDvQWWu8HRxqpM+tKz8OzgauV+DiOcr3FCjD6ubDnrrmMJlsf6fFJmggw93mtVPrZRL6yyi9aYCQBOIvg==}
+    dependencies:
+      '@turf/clone': 6.5.0
+      '@turf/helpers': 6.5.0
+      '@turf/meta': 6.5.0
+    dev: false
+
+  /@types/lodash-es/4.17.6:
+    resolution: {integrity: sha512-R+zTeVUKDdfoRxpAryaQNRKk3105Rrgx2CFRClIgRGaqDTdjsm8h6IYA8ir584W3ePzkZfst5xIgDwYrlh9HLg==}
+    dependencies:
+      '@types/lodash': 4.14.182
+    dev: true
+
+  /@types/lodash/4.14.182:
+    resolution: {integrity: sha512-/THyiqyQAP9AfARo4pF+aCGcyiQ94tX/Is2I7HofNRqoYLgN1PBoOWu2/zTA5zMxzP5EFutMtWtGAFRKUe961Q==}
     dev: true
 
   /@types/long/4.0.2:
@@ -178,10 +238,6 @@ packages:
   /@types/node/17.0.31:
     resolution: {integrity: sha512-AR0x5HbXGqkEx9CadRH3EBYx/VkiUgZIhP4wvPn/+5KIsgpNoyFaRlVe0Zlx9gRtg8fA06a9tskE2MSN7TcG4Q==}
     dev: false
-
-  /@types/openlayers/4.6.18:
-    resolution: {integrity: sha512-srqcI4chyzzs11ZhYpnZqT6Lh1v/O5EXh+pPENDtAwhE7CM31h+JsGomt+ioGhuNVJ96Jl4UkHR1Lllb/XrQAA==}
-    dev: true
 
   /abstract-logging/2.0.1:
     resolution: {integrity: sha512-2BjRTZxTPvheOvGbBslFSYOUkr+SjPtOnrLP33f+VIWLzezQpZcqVg7ja3L4dBXmzzgwT+a029jRx5PCi3JuiA==}
@@ -229,6 +285,16 @@ packages:
   /bytes/3.1.2:
     resolution: {integrity: sha512-/Nf7TyzTx6S3yRJObOAV7956r8cr2+Oj8AC5dt8wSP3BQAoeX58NoHyCU8P8zGkNXStjTSi6fzO6F0pBdcYbEg==}
     engines: {node: '>= 0.8'}
+    dev: false
+
+  /d3-array/1.2.4:
+    resolution: {integrity: sha512-KHW6M86R+FUPYGb3R5XiYjXPq7VzwxZ22buHhAEVG5ztoEcZZMLov530mmccaqA1GghZArjQV46fuc8kUqhhHw==}
+    dev: false
+
+  /d3-geo/1.7.1:
+    resolution: {integrity: sha512-O4AempWAr+P5qbk2bC2FuN/sDW4z+dN2wDf9QV3bxQt4M5HfOEeXLgJ/UKQW0+o1Dj8BE+L5kiDbdWUMjsmQpw==}
+    dependencies:
+      d3-array: 1.2.4
     dev: false
 
   /dapr-client/2.1.0:
@@ -544,11 +610,6 @@ packages:
     engines: {node: '>= 0.10'}
     dev: false
 
-  /jsts/2.9.0:
-    resolution: {integrity: sha512-QU9aQ+qZOSkMcX+ZZQevW0nswoKGAVoFfDycmAQeeHNYMnB4PoopiCXMKE2t93mEZeM82ikUA+eGdJjfJN5AkA==}
-    engines: {node: '>= 12'}
-    dev: false
-
   /light-my-request/4.10.1:
     resolution: {integrity: sha512-l+zWk0HXGhGzY7IYTZnYEqIpj3Mpcyk2f8+FkKUyREywvaiWCf2jyQVxpasKRsploY/nVpoqTlxx72CIeQNcIQ==}
     dependencies:
@@ -556,6 +617,10 @@ packages:
       cookie: mirrors.tencent.com/cookie/0.5.0
       process-warning: 1.0.0
       set-cookie-parser: 2.4.8
+    dev: false
+
+  /lodash-es/4.17.21:
+    resolution: {integrity: sha512-mKnC+QJ9pWVzv+C4/U3rRsHapFfHvQFoFB92e52xeyGMcX6/OlIl78je1u8vePzYZSkkogMPJ2yjxxsb89cxyw==}
     dev: false
 
   /lodash.camelcase/4.3.0:
@@ -738,6 +803,10 @@ packages:
     engines: {node: '>=6'}
     dependencies:
       regexparam: 1.3.0
+    dev: false
+
+  /turf-jsts/1.2.3:
+    resolution: {integrity: sha512-Ja03QIJlPuHt4IQ2FfGex4F4JAr8m3jpaHbFbQrgwr7s7L6U8ocrHiF3J1+wf9jzhGKxvDeaCAnGDot8OjGFyA==}
     dev: false
 
   mirrors.tencent.com/ajv/6.12.6:
@@ -1302,20 +1371,6 @@ packages:
       yargs-parser: mirrors.tencent.com/yargs-parser/20.2.9
     dev: false
 
-  registry.npmjs.org/@types/lodash-es/4.17.6:
-    resolution: {integrity: sha512-R+zTeVUKDdfoRxpAryaQNRKk3105Rrgx2CFRClIgRGaqDTdjsm8h6IYA8ir584W3ePzkZfst5xIgDwYrlh9HLg==, registry: https://mirrors.sjtug.sjtu.edu.cn/npm-registry, tarball: https://registry.npmjs.org/@types/lodash-es/-/lodash-es-4.17.6.tgz}
-    name: '@types/lodash-es'
-    version: 4.17.6
-    dependencies:
-      '@types/lodash': registry.npmjs.org/@types/lodash/4.14.182
-    dev: true
-
-  registry.npmjs.org/@types/lodash/4.14.182:
-    resolution: {integrity: sha512-/THyiqyQAP9AfARo4pF+aCGcyiQ94tX/Is2I7HofNRqoYLgN1PBoOWu2/zTA5zMxzP5EFutMtWtGAFRKUe961Q==, registry: https://mirrors.sjtug.sjtu.edu.cn/npm-registry, tarball: https://registry.npmjs.org/@types/lodash/-/lodash-4.14.182.tgz}
-    name: '@types/lodash'
-    version: 4.14.182
-    dev: true
-
   registry.npmjs.org/@types/proj4/2.5.2:
     resolution: {integrity: sha512-/Nmfn9p08yaYw6xo5f2b0L+2oHk2kZeOkp5v+4VCeNfq+ETlLQbmHmC97/pjDIEZy8jxwz7pdPpwNzDHM5cuJw==, registry: https://mirrors.sjtug.sjtu.edu.cn/npm-registry, tarball: https://registry.npmjs.org/@types/proj4/-/proj4-2.5.2.tgz}
     name: '@types/proj4'
@@ -1429,12 +1484,6 @@ packages:
     name: isexe
     version: 2.0.0
     dev: true
-
-  registry.npmjs.org/lodash-es/4.17.21:
-    resolution: {integrity: sha512-mKnC+QJ9pWVzv+C4/U3rRsHapFfHvQFoFB92e52xeyGMcX6/OlIl78je1u8vePzYZSkkogMPJ2yjxxsb89cxyw==, registry: https://mirrors.sjtug.sjtu.edu.cn/npm-registry, tarball: https://registry.npmjs.org/lodash-es/-/lodash-es-4.17.21.tgz}
-    name: lodash-es
-    version: 4.17.21
-    dev: false
 
   registry.npmjs.org/lru-cache/6.0.0:
     resolution: {integrity: sha512-Jo6dJ04CmSjuznwJSS3pUeWmd/H0ffTlkXXgwZi+eq1UCmqQwCh+eLsYOYCwY991i2Fah4h1BEMCx4qThGbsiA==, registry: https://mirrors.sjtug.sjtu.edu.cn/npm-registry, tarball: https://registry.npmjs.org/lru-cache/-/lru-cache-6.0.0.tgz}

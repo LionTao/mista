@@ -1,5 +1,8 @@
 {
   "compilerOptions": {
+    "target": "es2017",
+    "module": "system",
+    "moduleResolution": "Node",
     "esModuleInterop": true,
     "skipLibCheck": true
   },

@@ -1,17 +1,20 @@
-import {AbstractActor} from "dapr-client";
+import {AbstractActor, DaprClient, HttpMethod} from "dapr-client";
 import {Segment} from "../../../types/Segment";
 import RBush, {BBox} from "rbush";
 import DistributedIndexInterface from "./DistributedIndexInterface";
 import {RBushEntry} from "../../../types/RBushEntry";
 import {geoToH3, h3GetResolution, h3ToCenterChild, kRing} from "h3-js";
 
-import * as proj4 from "proj4";
+import proj4 from "proj4";
 import {isNil} from "lodash-es";
-import {DaprClient} from "dapr-client";
 import ActorProxyBuilder from "dapr-client/actors/client/ActorProxyBuilder";
 import ActorId from "dapr-client/actors/ActorId";
+import {UpdateData} from "@mista/pns-daemon/src";
 
-const SPLIT_TRESHOLED = 2000;
+const SPLIT_TRESHOLED = 20;
+
+const pnsDaemonAppName = "pns-daemon";
+const pndAppMethodName = "update";
 
 interface IndexRBushEntry extends RBushEntry {
     nextH3: Array<string>;
@@ -42,6 +45,7 @@ export default class DistributedIndexImpl extends AbstractActor implements Distr
         this.resolution = h3GetResolution(this.getActorId().getId());
         this.children = this.resolution < 15 ?
             kRing(h3ToCenterChild(this.getActorId().getId(), this.resolution + 1), 2) : [];
+        console.log(`${this.getActorId().getId()} activated`);
     }
 
     async onDeactivate(): Promise<void> {
@@ -100,19 +104,16 @@ export default class DistributedIndexImpl extends AbstractActor implements Distr
     }
 
     async onActorMethodPost(): Promise<void> {
-        if (isNil(this.rtree)) {
-            this.rtree = new RBush<IndexRBushEntry>();
-        }
-        if (isNil(this.resolution)) {
-            this.resolution = h3GetResolution(this.getActorId().getId());
-        }
         if (this.resolution < 15 && this.rtree.all().length > SPLIT_TRESHOLED) {
             this.isRetired = true
-            // TODO:通知更新pns
+            const payload: UpdateData = {
+                mother: this.getActorId().getId(),
+                children: this.children
+            }
+            await this.getDaprClient().invoker.invoke(pnsDaemonAppName, pndAppMethodName, HttpMethod.POST, payload)
             // 分派下一层分区
             const buckets = Array<Array<Segment>>();
             for (let i in this.children) {
-                // @ts-ignore
                 buckets[i] = Array<Segment>();
             }
             this.rtree.all().forEach(entry => {
@@ -156,12 +157,10 @@ export default class DistributedIndexImpl extends AbstractActor implements Distr
      */
     segmentToRBushEntry(s: Segment): IndexRBushEntry {
         const r = this.resolution
-        const fromProjection = proj4.Proj('EPSG:4326');
-        const toProjection = proj4.Proj("EPSG:3857");
         const startPoint = s.start;
         const endPoint = s.end;
-        const [startX, startY] = proj4.transform(fromProjection, toProjection, [startPoint.lng, startPoint.lat]);
-        const [endX, endY] = proj4.transform(fromProjection, toProjection, [endPoint.lng, endPoint.lat]);
+        const [startX, startY] = proj4("EPSG:4326", "EPSG:3857", [startPoint.lng, startPoint.lat]);
+        const [endX, endY] = proj4("EPSG:4326", "EPSG:3857", [endPoint.lng, endPoint.lat]);
         const minX = Math.min(startX, endX);
         const minY = Math.min(startY, endY);
         const maxX = Math.max(startX, endX);

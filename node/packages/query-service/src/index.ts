@@ -1,65 +1,71 @@
-import fastify from 'fastify';
-import {DaprClient, HttpMethod} from "dapr-client";
-import * as console from "console";
-import {Point} from "../../types/Point";
-import * as proj4 from "proj4";
-import RBush, {BBox} from "rbush";
+import DistributedIndexImpl from "@mista/distributed-index/src/actor/DistributedIndexImpl";
+import DistributedIndexInterface from '@mista/distributed-index/src/actor/DistributedIndexInterface';
 import RWLock from "async-rwlock";
-import {PNSEntry} from "../../types/PNSEntry";
-import ActorProxyBuilder from "dapr-client/actors/client/ActorProxyBuilder";
-import {DistributedIndexImpl, DistributedIndexInterface} from "@mista/distributed-index/src/index"
+import * as console from "console";
+import {DaprClient, HttpMethod} from "dapr-client";
 import ActorId from "dapr-client/actors/ActorId";
-import {env} from 'node:process';
-import {isNil} from "lodash-es";
+import ActorProxyBuilder from "dapr-client/actors/client/ActorProxyBuilder";
+import fastify from 'fastify';
 import * as process from "process";
+import buffer from "@turf/buffer";
+import {LineString} from "@turf/helpers";
+import bbox from "@turf/bbox"
 
-const jsts = require('jsts');
+import proj4 from "proj4";
+import RBush, {BBox} from "rbush";
+import {PNSEntry} from "../../types/PNSEntry";
+import {TrajectoryPoint} from "../../types/TrajectoryPoint";
+import {BBox2d} from "@turf/helpers/dist/js/lib/geojson";
+
+
 const daprHost = "127.0.0.1";
-const daprPort = "51000"; // Dapr Sidecar Port of this Example Server
+const daprPort = "3006"; // Dapr Sidecar Port of this Example Server
 // const serverHost = "127.0.0.1"; // App Host of this Example Server
-// const serverPort = "51001"; // App Port of this Example Server
-if (isNil(env.COMPUTE_GATEWAY)) {
-    console.error("No compute gateway defined.");
-    process.exit(1);
-}
-const computeGateway = env.COMPUTE_GATEWAY;
+const serverPort = "3007"; // App Port of this Example Server
+const trajectoryStoreName = "trajectory";
+const pnsDaemonAppName = "pns-daemon";
+const pndAppMethodName = "query";
 let PNS = new RBush<PNSEntry>();
 const lock = new RWLock();
 
-async function getTrajectory(id: string): Promise<Array<Point>> {
+async function getTrajectory(id: string): Promise<Array<TrajectoryPoint>> {
     const client = new DaprClient(daprHost, daprPort);
-    const res = await client.state.query("trajectory",
+    const res = await client.state.query(trajectoryStoreName,
         {
-            "filter": {
-                "EQ": {"id": `${id}`}
+            filter: {
+                EQ: {id: `${id}`}
             },
-            "sort": [
+            sort: [
                 {
-                    "key": "time",
-                    "order": "ASC"
+                    key: "time",
+                    order: "ASC"
                 }
             ],
-            "page": null
+            page: {
+                limit: 1000
+            }
         })
     return res.results.map(p => p.data)
 }
 
-function wgs84ToMercatorCoordinate(p: Point): jsts.geom.Coordinate {
-    const fromProjection = proj4.Proj('EPSG:4326');
-    const toProjection = proj4.Proj("EPSG:3857");
-    const [x, y] = proj4.transform(fromProjection, toProjection, [p.lng, p.lat]);
-    return new jsts.geom.Coordinate(x, y);
-}
-
-function bufferTarget(points: Array<jsts.geom.Coordinate>, buffer:number=100): BBox {
-    const line: jsts.geom.Envelope = new jsts.geom.LineString(points)
-        .buffer(buffer)
-        .envelope;
+function bufferTarget(points: Array<TrajectoryPoint>, radius: number = 1000): BBox {
+    // @turf/buffer use spherical coordinates
+    const line: LineString = {
+        type: "LineString",
+        coordinates: points.map(r => [r.lng, r.lat])
+    }
+    const buffered = buffer(line, radius, {
+        units: "meters",
+        steps: 8
+    })
+    const box = bbox(buffered) as BBox2d
+    const [minX, minY] = proj4('EPSG:4326', "EPSG:3857", [box[0], box[1]]);
+    const [maxX, maxY] = proj4('EPSG:4326', "EPSG:3857", [box[2], box[3]]);
     return {
-        minX: line.getMinX(),
-        minY: line.getMinY(),
-        maxX: line.getMaxX(),
-        maxY: line.getMaxY()
+        minX: minX,
+        minY: minY,
+        maxX: maxX,
+        maxY: maxY,
     }
 }
 
@@ -73,11 +79,11 @@ interface Payload {
     candidates: Array<string>;
 }
 
-async function query(id: string, batchSize: number = 4, start = performance.now()): Promise<void> {
+async function query(id: string, batchSize: number = 4, start = performance.now()): Promise<string> {
     // get trajectory
     const trajectory = await getTrajectory(id);
     // buffer to polygon then BBox
-    const box = bufferTarget(trajectory.map(wgs84ToMercatorCoordinate), 1000);
+    const box = bufferTarget(trajectory, 1); // km
     // search PNS
     await lock.readLock();
     const regions = PNS.search(box);
@@ -90,9 +96,9 @@ async function query(id: string, batchSize: number = 4, start = performance.now(
         tasks.push(builder.build(new ActorId(r.id)).query(box));
     })
     const queryResponse = await Promise.all(tasks);
-    const candidates: Array<string> = [].concat(...queryResponse);
+    const candidates: Array<string> = queryResponse.flat();
 
-    const computeTasks = Array<Promise<Response>>();
+    const computeTasks = Array<Promise<object>>();
     // compute
     for (let i = 0; i < candidates.length; i += batchSize) {
         const chunk = candidates.slice(i, i + batchSize);
@@ -100,23 +106,20 @@ async function query(id: string, batchSize: number = 4, start = performance.now(
             target: trajectory.map(p => [p.lng, p.lat]),
             candidates: chunk
         };
-        computeTasks.push(fetch(computeGateway, {
-            method: "POST",
-            body: JSON.stringify(payload),
-            headers: {'Content-Type': 'application/json'}
-        }));
+        const client = new DaprClient(daprHost, daprPort);
+        computeTasks.push(client.invoker.invoke("compute", "hausdorff", HttpMethod.POST, payload));
     }
     const distancesResponse = await Promise.all(computeTasks);
     const distances = Array<ComputeResult>();
     for (let r of distancesResponse) {
-        const data = await r.json() as Array<ComputeResult>
+        const data = await JSON.parse(r as unknown as string) as Array<ComputeResult>;
         data.forEach(result => distances.push(result));
     }
     // sort
     distances.sort((a, b) => a.distance < b.distance ? -1 : 1)
     // send result
     console.log(`Query latency: ${performance.now() - start}ms, results: ${distances}`);
-    return;
+    return `Query latency: ${performance.now() - start}ms`;
 }
 
 const server = fastify()
@@ -127,18 +130,42 @@ server.get('/ping', async (request, reply) => {
     return 'pong\n';
 })
 
-server.listen(8080, (err, address) => {
-    if (err) {
-        console.error(err)
-        process.exit(1)
+interface IQuerystring {
+    id: string;
+}
+
+server.get<{ Querystring: IQuerystring }>(
+    '/query', async (request, reply) => {
+        const {id} = request.query;
+        reply.status(200);
+        return await query(id);
     }
-    console.log(`Server listening at ${address}`)
+)
+
+async function updatePNS(): Promise<void> {
+    const client = new DaprClient(daprHost, daprPort);
+    await lock.writeLock()
+    const newTree = (await client.invoker.invoke(pnsDaemonAppName, pndAppMethodName, HttpMethod.GET)) as unknown as string;
+    PNS = new RBush<PNSEntry>().fromJSON(JSON.parse(newTree));
+    console.log(`Update success, load:${PNS.all().length}`);
+    lock.unlock();
+}
+
+server.listen(serverPort, (err, address) => {
+    if (err) {
+        console.error(err);
+        process.exit(1);
+    }
+    console.log(`Server listening at ${address}`);
     setInterval(async () => {
-        const client = new DaprClient(daprHost, daprPort);
-        await lock.writeLock()
-        const newTree = String(await client.invoker.invoke("pns-damon", "query", HttpMethod.GET));
-        PNS = PNS.clear();
-        PNS = PNS.load(JSON.parse(newTree));
-        lock.unlock();
+        updatePNS()
+            .catch(err => console.error("Update failed", err))
+            .finally(() => {
+                try {
+                    lock.unlock()
+                } catch (e) {
+                    // console.log("Already unlocked");
+                }
+            });
     }, 3000)
 })

@@ -1,23 +1,26 @@
-import {AbstractActor, HttpMethod} from "dapr-client";
+import {AbstractActor, DaprClient, HttpMethod} from "dapr-client";
 import TrajectoryAssemblerInterface from "./TrajectoryAssemblerInterface";
-import {Point} from "../../../types/Point";
+import {TrajectoryPoint} from "../../../types/TrajectoryPoint";
 import {isNil, throttle} from "lodash-es";
 import {Segment} from "../../../types/Segment";
 import RBush, {BBox} from "rbush";
-import {DistributedIndexImpl, DistributedIndexInterface} from "@mista/distributed-index/src/index"
-import * as proj4 from "proj4";
-import {DaprClient} from "dapr-client";
+import DistributedIndexImpl from "@mista/distributed-index/src/actor/DistributedIndexImpl";
+import DistributedIndexInterface from "@mista/distributed-index/src/actor/DistributedIndexInterface";
+import proj4 from "proj4";
 import {PNSEntry} from "../../../types/PNSEntry";
 import RWLock from "async-rwlock";
 import ActorProxyBuilder from "dapr-client/actors/client/ActorProxyBuilder";
 import ActorId from "dapr-client/actors/ActorId";
+import console from "console";
 
 
 const TRAJETORY_STORE_NAME = "trajectory";
+const pnsDaemonAppName = "pns-daemon";
+const pndAppMethodName = "query";
 
 export default class TrajectoryAssemblerImpl extends AbstractActor implements TrajectoryAssemblerInterface {
     private PNS: RBush<PNSEntry>;
-    private previousPoint: Point | null;
+    private previousPoint: TrajectoryPoint | null;
     private lock: RWLock;
 
 
@@ -34,7 +37,7 @@ export default class TrajectoryAssemblerImpl extends AbstractActor implements Tr
         return;
     };
 
-    async acceptNewPoint(p: Point): Promise<void> {
+    async acceptNewPoint(p: TrajectoryPoint): Promise<void> {
         const client = this.getDaprClient();
         const myActorState = this.getStateManager();
         if (!isNil(this.previousPoint)) {
@@ -49,6 +52,8 @@ export default class TrajectoryAssemblerImpl extends AbstractActor implements Tr
                 .catch(err => {
                     console.error(err);
                 })
+        } else {
+            console.log(`${this.getActorId().getId()}nice to meet you!`);
         }
         this.previousPoint = p;
         await myActorState.setState("previousPoint", this.previousPoint);
@@ -66,13 +71,10 @@ export default class TrajectoryAssemblerImpl extends AbstractActor implements Tr
     async sendSegment(s: Segment) {
         const client = this.getDaprClient();
         const builder = new ActorProxyBuilder<DistributedIndexInterface>(DistributedIndexImpl, client);
-
-        const fromProjection = proj4.Proj('EPSG:4326');
-        const toProjection = proj4.Proj("EPSG:3857");
         const startPoint = s.start;
         const endPoint = s.end;
-        const [startX, startY] = proj4.transform(fromProjection, toProjection, [startPoint.lng, startPoint.lat]);
-        const [endX, endY] = proj4.transform(fromProjection, toProjection, [endPoint.lng, endPoint.lat]);
+        const [startX, startY] = proj4('EPSG:4326', "EPSG:3857", [startPoint.lng, startPoint.lat]);
+        const [endX, endY] = proj4('EPSG:4326', "EPSG:3857", [endPoint.lng, endPoint.lat]);
         const minX = Math.min(startX, endX);
         const minY = Math.min(startY, endY);
         const maxX = Math.max(startX, endX);
@@ -84,7 +86,7 @@ export default class TrajectoryAssemblerImpl extends AbstractActor implements Tr
             maxY: maxY
         }
         let targets = this.PNS.search(box);
-        while (isNil(targets)) {
+        while (isNil(targets) || targets.length == 0) {
             await this.updatePNS();
         }
         let tasks = Array<Promise<boolean>>();
@@ -101,9 +103,9 @@ export default class TrajectoryAssemblerImpl extends AbstractActor implements Tr
 
     updatePNS = throttle(async () => {
         await this.lock.writeLock()
-        const newTree = String(await this.getDaprClient().invoker.invoke("pns-damon", "query", HttpMethod.GET));
-        this.PNS.clear();
-        this.PNS.load(JSON.parse(newTree));
+        const newTree = (await this.getDaprClient().invoker.invoke(pnsDaemonAppName, pndAppMethodName, HttpMethod.GET)) as unknown as string;
+        this.PNS = new RBush<PNSEntry>().fromJSON(JSON.parse(newTree));
+        console.log(`Update success, load:${this.PNS.all().length} entries`);
         this.lock.unlock()
     }, 1000)
 }
