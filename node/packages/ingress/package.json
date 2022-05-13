@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "send": "dapr run --app-id ingress --app-protocol http --app-port 3003 --dapr-http-port 3002 --config ../../../config.yaml --components-path ../../../components -- esno ./src/index.ts",
+    "serve": "dapr run --app-id ingress  --app-max-concurrency 1000 --app-protocol http --app-port 3003 --dapr-http-port 3002 --dapr-http-max-request-size 1024 --config ../../../config.yaml --components-path ../../../components -- esno ./src/index.ts",
     "check": "tsc -p ./tsconfig.json --noEmit ",
     "test": "echo \"Error: no test specified\" && exit 1"
   },

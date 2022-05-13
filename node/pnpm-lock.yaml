@@ -34,8 +34,10 @@ importers:
   packages/distributed-index:
     specifiers:
       '@mista/pns-daemon': workspace:*
+      async-rwlock: ^1.1.1
     dependencies:
       '@mista/pns-daemon': link:../pns-daemon
+      async-rwlock: 1.1.1
 
   packages/ingress:
     specifiers:

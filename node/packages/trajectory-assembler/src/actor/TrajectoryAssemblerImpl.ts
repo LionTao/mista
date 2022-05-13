@@ -1,17 +1,18 @@
-import {AbstractActor, DaprClient, HttpMethod} from "dapr-client";
+import { AbstractActor, DaprClient, HttpMethod } from "dapr-client";
 import TrajectoryAssemblerInterface from "./TrajectoryAssemblerInterface";
-import {TrajectoryPoint} from "../../../types/TrajectoryPoint";
-import {isNil, throttle} from "lodash-es";
-import {Segment} from "../../../types/Segment";
-import RBush, {BBox} from "rbush";
+import { TrajectoryPoint } from "../../../types/TrajectoryPoint";
+import { isNil, throttle, uniq } from "lodash-es";
+import { Segment } from "../../../types/Segment";
+import RBush, { BBox } from "rbush";
 import DistributedIndexImpl from "@mista/distributed-index/src/actor/DistributedIndexImpl";
 import DistributedIndexInterface from "@mista/distributed-index/src/actor/DistributedIndexInterface";
 import proj4 from "proj4";
-import {PNSEntry} from "../../../types/PNSEntry";
+import { PNSEntry } from "../../../types/PNSEntry";
 import RWLock from "async-rwlock";
 import ActorProxyBuilder from "dapr-client/actors/client/ActorProxyBuilder";
 import ActorId from "dapr-client/actors/ActorId";
 import console from "console";
+import { pointDist } from "h3-js"
 
 
 const TRAJETORY_STORE_NAME = "trajectory";
@@ -34,37 +35,42 @@ export default class TrajectoryAssemblerImpl extends AbstractActor implements Tr
     async onActivate() {
         const [hasValue, value] = await this.getStateManager().tryGetState("previousPoint");
         this.previousPoint = hasValue ? value : null;
+        await this.updatePNS();
         return;
     };
 
     async acceptNewPoint(p: TrajectoryPoint): Promise<void> {
         const client = this.getDaprClient();
-        const myActorState = this.getStateManager();
         if (!isNil(this.previousPoint)) {
             // 如果是第二个点就可以构成线段
+            const dist = pointDist([p.lat, p.lng], [this.previousPoint.lat, this.previousPoint.lng], "m")
+            if (dist > 10000 || dist < 10) {
+                return;
+            }
             const newSegment: Segment = {
                 id: this.getActorId().getId(),
                 start: this.previousPoint,
                 end: p
             }
             // send to index
-            this.sendSegment(newSegment)
-                .catch(err => {
-                    console.error(err);
-                })
+            await this.sendSegment(newSegment);
         } else {
             console.log(`${this.getActorId().getId()}nice to meet you!`);
         }
         this.previousPoint = p;
-        await myActorState.setState("previousPoint", this.previousPoint);
-        client.state.save(TRAJETORY_STORE_NAME, [
+
+        await client.state.save(TRAJETORY_STORE_NAME, [
             {
                 key: `${p.id}-${p.time}`,
                 value: p
             }
-        ]).catch(err => {
-            console.error(err);
-        })
+        ])
+        return;
+    }
+
+    async onDeactivate(): Promise<void> {
+        const myActorState = this.getStateManager();
+        await myActorState.setState("previousPoint", this.previousPoint);
         return;
     }
 
@@ -87,8 +93,11 @@ export default class TrajectoryAssemblerImpl extends AbstractActor implements Tr
         }
         let targets = this.PNS.search(box);
         while (isNil(targets) || targets.length == 0) {
+            console.log(`${this.getActorId().getId()}: cache found empty result!`);
             await this.updatePNS();
+            targets = this.PNS.search(box);
         }
+        targets = uniq(targets);
         let tasks = Array<Promise<boolean>>();
         for (let t of targets) {
             const actor = builder.build(new ActorId(t.id));
@@ -96,6 +105,7 @@ export default class TrajectoryAssemblerImpl extends AbstractActor implements Tr
         }
         let statusCode = await Promise.all(tasks);
         if (statusCode.includes(false)) {
+            console.log(`${this.getActorId().getId()}: cache expired`);
             await this.updatePNS();
         }
         return;
@@ -105,7 +115,7 @@ export default class TrajectoryAssemblerImpl extends AbstractActor implements Tr
         await this.lock.writeLock()
         const newTree = (await this.getDaprClient().invoker.invoke(pnsDaemonAppName, pndAppMethodName, HttpMethod.GET)) as unknown as string;
         this.PNS = new RBush<PNSEntry>().fromJSON(JSON.parse(newTree));
-        console.log(`Update success, load:${this.PNS.all().length} entries`);
+        // console.log(`Update success, load:${this.PNS.all().length} entries`);
         this.lock.unlock()
     }, 1000)
 }

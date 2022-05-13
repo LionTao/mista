@@ -1,12 +1,34 @@
 apiVersion: dapr.io/v1alpha1
 kind: Component
 metadata:
-  name: pubsub
+  name: mykafka
 spec:
-  type: pubsub.redis
+  type: pubsub.kafka
   version: v1
   metadata:
-  - name: redisHost
-    value: localhost:6379
-  - name: redisPassword
-    value: ""
+  - name: brokers # Required. Kafka broker connection setting
+    value: "192.168.0.54:9092"
+  - name: clientID # Optional. Used as client tracing ID by Kafka brokers.
+    value: "my-dapr-app-id"
+  - name: authType # Required.
+    value: "none"
+  - name: version
+    value: 2.8.1
+  - name: maxMessageBytes # Optional.
+    value: 1048588
+  - name: consumeRetryInterval # Optional.
+    value: "200ms"
+  - name: disableTls # Optional. Disable TLS. This is not safe for production!! You should read the `Mutual TLS` section for how to use TLS.
+    value: "true"
+# apiVersion: dapr.io/v1alpha1
+# kind: Component
+# metadata:
+#   name: pubsub
+# spec:
+#   type: pubsub.redis
+#   version: v1
+#   metadata:
+#   - name: redisHost
+#     value: localhost:6379
+#   - name: redisPassword
+#     value: ""

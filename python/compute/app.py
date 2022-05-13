@@ -1,3 +1,4 @@
+from copyreg import pickle
 import json
 import logging
 import os
@@ -13,13 +14,14 @@ from dapr.clients import DaprClient
 from dapr.conf import global_settings
 from flask import Flask, request, jsonify
 from flask_dapr.app import DaprApp
+import pickle
 
 
 
 @dataclass(eq=True, frozen=True)
 class TrajectoryPoint:
     id: str = ""
-    time: float = time.time()
+    t: float = time.time()
     lng: float = inf
     lat: float = inf
 
@@ -53,42 +55,44 @@ def compute():
     return jsonify(res), 200
 
 
-def calculate_hausdorff(msg) -> List[Dict[str, float]]:
-    target = np.array([[i.lng, i.lat] for i in msg.target])
-    query = {
-        "filter": {
-            {
-                "IN": {"id": msg.candidates}
-            }
-        },
+def calculate_hausdorff(msg:Payload) -> List[Dict[str, float]]:
+    target = np.array([[i[0], i[1]] for i in msg.target])
+    query = f'''{{
+        "filter": {{
+                "IN": {{"id": [{','.join(map(lambda x:f'"{x}"',set(msg.candidates)))}] }}
+        }},
         "sort": [
-            {
-                "key": "time",
-            },
-            {
-                "key": "id",
-            },
+            {{
+                "key": "time"
+            }}
         ]
-    }
+    }}'''
     with DaprClient() as d:
-        candidate_trajectories = d.query_state(store_name, json.dumps(query)).results
-    bucket = dict()
-    for candidates in msg.candidates:
-        bucket[candidates] = list()
+        candidate_trajectories = d.query_state(store_name, query).results
+            
+    bucket:Dict[str,List[List[float]]] = dict()
     # make trajectory
     for p in candidate_trajectories:
         point = from_dict(TrajectoryPoint, p.json())
-        bucket[point.id].append([point.lng, point.lat])
-
-    bucket = list(bucket.items())
-    dist = tdist.cdist(target, np.array(map(lambda x: x[1], bucket)), metric="hausdorf", type_d="spherical")
+        new_data = bucket.get(point.id,[])
+        new_data.append([point.lng, point.lat])
+        bucket[point.id]= new_data
+    
+    try:
+        dist = tdist.cdist([target], [np.array(v) for _,v in bucket.items()], metric="hausdorff", type_d="spherical")
+    except Exception as e:
+        print(e,flush=True)
+        print([np.array(v) for _,v in bucket.items()],flush=True)
+        return []
     res = list()
-    for i, d in enumerate(dist):
-        candidates_id = bucket[i][0]
+    keys = list(bucket.keys())
+    for i, d in enumerate(dist[0]):
+        candidates_id = keys[i]
         res.append({
             "id": candidates_id,
             "distance": d
         })
+    print(res,flush=True)
     return res
 
 

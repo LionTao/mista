@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "serve": "dapr run --app-id trajectory-assembler --app-protocol http --app-port 3009 --dapr-http-port 3008 --config ../../../config.yaml --components-path ../../../components -- esno ./src/index.ts",
+    "serve": "dapr run --app-id trajectory-assembler  --app-max-concurrency 1000 --app-protocol http --app-port 3009 --dapr-http-port 3008 --dapr-http-max-request-size 1024 --config ../../../config.yaml --components-path ../../../components -- esno ./src/index.ts",
     "check": "tsc -p ./tsconfig.json --noEmit ",
     "test": "echo \"Error: no test specified\" && exit 1"
   },

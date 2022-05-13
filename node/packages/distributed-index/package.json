@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "serve": "dapr run --app-id distributed-index --app-protocol http --app-port 3001 --dapr-http-port 3000 --config ../../../config.yaml --components-path ../../../components -- esno ./src/index.ts",
+    "serve": "dapr run --app-id distributed-index --app-protocol http --app-port 3001 --dapr-http-port 3000 --dapr-http-max-request-size 1024 --config ../../../config.yaml --components-path ../../../components -- esno ./src/index.ts",
     "check": "tsc -p ./tsconfig.json --noEmit ",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -12,6 +12,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@mista/pns-daemon": "workspace:*"
+    "@mista/pns-daemon": "workspace:*",
+    "async-rwlock": "^1.1.1"
   }
 }

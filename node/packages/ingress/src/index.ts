@@ -1,9 +1,9 @@
-import {DaprClient, DaprServer} from "dapr-client";
+import { DaprClient, DaprServer } from "dapr-client";
 import ActorProxyBuilder from "dapr-client/actors/client/ActorProxyBuilder";
 import ActorId from "dapr-client/actors/ActorId";
 import TrajectoryAssemblerInterface from "@mista/trajectory-assembler/src/actor/TrajectoryAssemblerInterface";
 import TrajectoryAssemblerImpl from "@mista/trajectory-assembler/src/actor/TrajectoryAssemblerImpl";
-import {TrajectoryPoint} from "../../types/TrajectoryPoint";
+import { TrajectoryPoint } from "../../types/TrajectoryPoint";
 
 const fs = require('node:fs');
 const readline = require('node:readline');
@@ -24,52 +24,56 @@ function strToPoint(s: string): TrajectoryPoint {
     }
 }
 
-async function main(){
+
+async function sendLocalFile() {
+    // const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+
     const server = new DaprServer(serverHost, serverPort, daprHost, daprPort);
 
     await server.actor.init(); // Let the server know we need actors
     await server.start();
 
-    const rl = readline.createInterface({
-        input: fs.createReadStream('/home/liontao/work/mista/data/all.txt'),
-        crlfDelay: Infinity
-    });
+    try {
+        const data = fs.readFileSync('/home/liontao/work/mista/data/all.txt', 'utf8');
+        for (let line of data.split(/\r?\n/)) {
+            if (line === "") {
+                continue;
+            }
 
-    rl.on('line', async (line) => {
-        if (line === "") {
-            return;
+            const builder = new ActorProxyBuilder<TrajectoryAssemblerInterface>(TrajectoryAssemblerImpl, client);
+            const p = strToPoint(line);
+            const actor = builder.build(new ActorId(p.id));
+            await actor.acceptNewPoint(p);
         }
-
-        const builder = new ActorProxyBuilder<TrajectoryAssemblerInterface>(TrajectoryAssemblerImpl, client);
-        const p = strToPoint(line);
-        await builder.build(new ActorId(p.id)).acceptNewPoint(p);
-        // builder.build(new ActorId(p.id)).acceptNewPoint(p)
-        //     .catch(err => {
-        //         console.error(err);
-        //     })
-    });
+        console.log("end");
+    } catch (err) {
+        console.error(err)
+    }
 }
 
-main().catch(err=>console.error(err));
+async function start() {
+    // Note that the DAPR_HTTP_PORT and DAPR_GRPC_PORT environment variables are set by DAPR itself. https://docs.dapr.io/reference/environment/
+    const server = new DaprServer(serverHost, serverPort, daprHost, daprPort);
 
+    // Initialize the subscription. Note that this must be done BEFORE calling .start()
+    await server.pubsub.subscribe("mykafka", "point", async (data: Record<string, any>) => {
+        // The library parses JSON when possible.
+        const builder = new ActorProxyBuilder<TrajectoryAssemblerInterface>(TrajectoryAssemblerImpl, client);
+        const p = data as TrajectoryPoint;
+        const actor = builder.build(new ActorId(p.id));
+        await actor.acceptNewPoint(p);
+        return;
+    });
+    await server.start();
 
-// (async ()=>{
-//     const server = new DaprServer(serverHost, serverPort, daprHost, daprPort);
-//
-//     await server.actor.init(); // Let the server know we need actors
-//     await server.start();
-//     try {
-//         const data = fs.readFileSync('/home/liontao/work/mista/data/all.txt', 'utf8')
-//         for(let line of data.split(/\r?\n/)){
-//             if (line === "") {
-//                 continue;
-//             }
-//
-//             const builder = new ActorProxyBuilder<TrajectoryAssemblerInterface>(TrajectoryAssemblerImpl, client);
-//             const p = strToPoint(line);
-//             await builder.build(new ActorId(p.id)).acceptNewPoint(p);
-//         }
-//     } catch (err) {
-//         console.error(err)
-//     }
-// })()
+    // Publish a message
+    // console.log("[Dapr-JS][Example] Publishing message");
+
+    // // Internally, the message will be serialized using JSON.stringify()
+    // await client.pubsub.publish("mykafka", "point", { hello: "world" });
+}
+
+start().catch((e) => {
+    console.error(e);
+    process.exit(1);
+});

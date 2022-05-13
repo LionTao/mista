@@ -4,6 +4,6 @@ metadata:
   name: daprConfig
 spec:
   tracing:
-    samplingRate: "0"
+    samplingRate: "1"
     zipkin:
       endpointAddress: http://localhost:9412/api/v2/spans

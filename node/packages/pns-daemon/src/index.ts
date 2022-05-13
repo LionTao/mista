@@ -12,6 +12,8 @@ const serverHost = "127.0.0.1"; // App Host of this Example Server
 const serverPort = "3005"; // App Port of this Example Server
 
 let rtree = new RBush<PNSEntry>();
+const regionBook = new Set<string>(); // 存放现在正在工作的节点编号
+const nursingHome = new Set<string>(); // 养老院，存放退休节点编号
 const lock = new RWLock();
 
 export interface UpdateData {
@@ -20,12 +22,14 @@ export interface UpdateData {
 }
 
 async function update(data: UpdateData): Promise<void> {
+    const before = regionBook.size
     await lock.writeLock();
-    console.log(`before:${rtree.all().length}`)
-    rtree = rtree.remove(h3ToBBox(data.mother), (a, b) => a.id === b.id);
-    rtree = rtree.load(data.children.map(h3ToBBox));
-    console.log(`after:${rtree.all().length}`)
+    regionBook.delete(data.mother);
+    nursingHome.add(data.mother);
+    data.children.filter(r=>!nursingHome.has(r)).forEach(r=>regionBook.add(r));
+    rtree = new RBush<PNSEntry>().load(Array.from(regionBook).map(h3ToBBox));
     lock.unlock();
+    console.log(`before:${before},after:${regionBook.size},${data.mother} to ${data.children.join(",")}`)
     return;
 }
 
@@ -33,15 +37,15 @@ async function query(): Promise<string> {
     await lock.readLock();
     const res = JSON.stringify(rtree.toJSON());
     lock.unlock();
-    // console.log(`Query get: ${res}`)
     return res;
 }
 
 async function start() {
-    // Create a Server (will subscribe) and Client (will publish)
     const server = new DaprServer(serverHost, serverPort, daprHost, daprPort);
     await lock.writeLock();
-    rtree = rtree.load(getRes0Indexes().map(h3ToBBox));
+    const newRegions = getRes0Indexes().map(h3ToBBox);
+    getRes0Indexes().forEach(r=>regionBook.add(r));
+    rtree = rtree.load(newRegions);
     lock.unlock();
 
     await server.invoker.listen("update", async (data) => {

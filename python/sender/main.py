@@ -2,8 +2,11 @@ import json
 import time
 from dataclasses import dataclass, asdict
 from math import inf
+from kafka import KafkaProducer
+from cloudevents.http import CloudEvent, to_json
 
-from pykafka import KafkaClient, Topic
+
+
 
 
 @dataclass(eq=True, frozen=True)
@@ -19,7 +22,7 @@ def str_to_TrajectoryPoint(s: str) -> TrajectoryPoint:
     try:
         p = TrajectoryPoint(
             id=data_list[0],
-            time=time.time(),
+            time=round(time.time() * 1000),
             lng=float(data_list[2]),
             lat=float(data_list[3])
         )
@@ -27,16 +30,25 @@ def str_to_TrajectoryPoint(s: str) -> TrajectoryPoint:
     except Exception as e:
         print("current:", s, flush=True)
         return TrajectoryPoint(
-            "-1", time.time(), 0, 0
+            "-1", round(time.time() * 1000), 0, 0
         )
 
 
 def main():
-    client = KafkaClient(hosts="127.0.0.1:9092")
-    topic: Topic = client.topics['my.test']
-    with open("/home/liontao/work/mista/data/filtered/all.txt") as fp:
-        s = fp.readline()
-        with topic.get_sync_producer(delivery_reports=True) as producer:
-            while s:
-                p = str_to_TrajectoryPoint(s.strip())
-                producer.produce(json.dumps(asdict(p)), p.id)
+    client = KafkaProducer(bootstrap_servers=["192.168.0.54:9092"])
+    with open("/home/liontao/work/mista/data/all.txt") as fp:
+        s = fp.readline()    
+        while s:
+            p = str_to_TrajectoryPoint(s.strip())
+            attributes = {
+                "type": "com.example.sampletype1",
+                "source": "https://example.com/event-producer",
+            }
+            event = CloudEvent(attributes, asdict(p))
+            body = to_json(event)
+            client.send(topic="point",value = body, key = p.id.encode('ascii'),headers=[("Content-Type","application/json".encode("ascii"))])
+            # client.send(topic="point",value = body, key = "1".encode("ascii")).
+            s = fp.readline()
+
+if __name__ == '__main__':
+    main()

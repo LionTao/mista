@@ -1,17 +1,18 @@
-import {AbstractActor, DaprClient, HttpMethod} from "dapr-client";
-import {Segment} from "../../../types/Segment";
-import RBush, {BBox} from "rbush";
+import { AbstractActor, DaprClient, HttpMethod } from "dapr-client";
+import { Segment } from "../../../types/Segment";
+import RBush, { BBox } from "rbush";
 import DistributedIndexInterface from "./DistributedIndexInterface";
-import {RBushEntry} from "../../../types/RBushEntry";
-import {geoToH3, h3GetResolution, h3ToCenterChild, kRing} from "h3-js";
+import { RBushEntry } from "../../../types/RBushEntry";
+import { geoToH3, h3GetResolution, h3ToCenterChild, kRing } from "h3-js";
 
 import proj4 from "proj4";
-import {isNil} from "lodash-es";
+import { isNil } from "lodash-es";
 import ActorProxyBuilder from "dapr-client/actors/client/ActorProxyBuilder";
 import ActorId from "dapr-client/actors/ActorId";
-import {UpdateData} from "@mista/pns-daemon/src";
+import { UpdateData } from "@mista/pns-daemon/src";
+import RWLock from "async-rwlock";
 
-const SPLIT_TRESHOLED = 20;
+const SPLIT_TRESHOLED = 500;
 
 const pnsDaemonAppName = "pns-daemon";
 const pndAppMethodName = "update";
@@ -26,6 +27,8 @@ export default class DistributedIndexImpl extends AbstractActor implements Distr
     isRetired: Boolean;
     resolution: number;
     children: Array<string>;
+    count: number;
+    lock: RWLock;
 
     constructor(daprClient: DaprClient, id: ActorId) {
         super(daprClient, id);
@@ -33,6 +36,8 @@ export default class DistributedIndexImpl extends AbstractActor implements Distr
         this.isRetired = false;
         this.resolution = 16;
         this.children = [];
+        this.count = 0;
+        this.lock = new RWLock();
     }
 
     async onActivate(): Promise<void> {
@@ -40,18 +45,22 @@ export default class DistributedIndexImpl extends AbstractActor implements Distr
         this.rtree = hasRtree ? new RBush<IndexRBushEntry>().fromJSON(rtreeJSON) : new RBush<IndexRBushEntry>();
         // const [hasBuffer, bufferData] = await this.getStateManager().tryGetState("buffer");
         // this.buffer = hasBuffer ? bufferData : new Array<Segment>();
+        const [hasCount, countData] = await this.getStateManager().tryGetState("count");
+        this.count = hasCount ? countData : 0;
         const [hasRetired, retiredFlag] = await this.getStateManager().tryGetState("retired");
         this.isRetired = hasRetired ? retiredFlag : false;
         this.resolution = h3GetResolution(this.getActorId().getId());
         this.children = this.resolution < 15 ?
             kRing(h3ToCenterChild(this.getActorId().getId(), this.resolution + 1), 2) : [];
+        this.lock = new RWLock();
         console.log(`${this.getActorId().getId()} activated`);
     }
 
     async onDeactivate(): Promise<void> {
         const stateManager = this.getStateManager();
-        if (this.rtree && this.rtree.all().length > 0) {
+        if (this.rtree && this.count > 0) {
             await stateManager.setState("rtree", this.rtree.toJSON());
+            await stateManager.setState("count", this.count);
         }
         // if (this.buffer.length > 0) {
         //     await stateManager.setState("buffer", this.buffer);
@@ -70,41 +79,72 @@ export default class DistributedIndexImpl extends AbstractActor implements Distr
             const builder = new ActorProxyBuilder<DistributedIndexInterface>(DistributedIndexImpl, client);
             const startH3 = geoToH3(s.start.lat, s.start.lng, this.resolution + 1)
             const endH3 = geoToH3(s.end.lat, s.end.lng, this.resolution + 1)
-            const targets = [startH3, endH3].filter(t => this.children.includes(t))
-            targets.forEach(t => {
+            const targets = Array.from(new Set([startH3, endH3])).filter(t => this.children.includes(t))
+            targets.forEach(async t => {
                 const actor = builder.build(new ActorId(t));
-                actor.acceptNewSegment(s).catch(err => {
-                    console.error(err)
-                });
-            })
+                // actor.acceptNewSegment(s).catch(err => {
+                //     console.error(err)
+                // });
+                actor.acceptNewSegment(s).catch(err=>{console.log(err)});
+            });
             return false;
         }
+        // if (this.getActorId().getId() === "823187fffffffff") {
+        //     console.log("WARN:823187fffffffff!", this.count);
+        // }
         if (isNil(this.rtree)) {
             this.rtree = new RBush<IndexRBushEntry>();
         }
+        await this.lock.writeLock();
         this.rtree = this.rtree.insert(this.segmentToRBushEntry(s));
-        // TODO: 给消息队列发消息
-        console.log(`latency: ${new Date().getTime() - s.end.time}`)
+        this.count += 1;
+        this.lock.unlock();
+        console.log(`latency: ${new Date().getTime() - s.end.time}`);
         return true;
     }
 
     async bulkLoadInternal(segments: Array<Segment>): Promise<void> {
         if (this.isRetired) {
-            this.bulkLoadInternal(segments)
-                .catch(err => {
-                    console.error(err);
+            const client = this.getDaprClient();
+            const builder = new ActorProxyBuilder<DistributedIndexInterface>(DistributedIndexImpl, client);
+            // 向下传递
+            const entries = segments.map(this.segmentToRBushEntry);
+            // 分派下一层分区
+            const buckets = Array<Array<Segment>>();
+            for (let i in this.children) {
+                buckets[i] = Array<Segment>();
+            }
+            entries.forEach(entry => {
+                entry.nextH3.forEach(i => {
+                    if (i in buckets.keys()) {
+                        // @ts-ignore
+                        buckets[i].push(entry.segment);
+                    }
                 })
+            })
+            for (let partitionID in buckets) {
+                const data = buckets[partitionID];
+                if (data.length > 0) {
+                    const actor = builder.build(new ActorId(partitionID))
+                    actor.bulkLoadInternal(data).catch(err=>{console.log(err)});
+                }
+            }
             return;
         }
         if (isNil(this.rtree)) {
             this.rtree = new RBush<IndexRBushEntry>();
         }
+        await this.lock.writeLock();
         this.rtree = this.rtree.load(segments.map(this.segmentToRBushEntry));
+        this.count+=segments.length;
+        this.lock.unlock();
         return;
     }
 
     async onActorMethodPost(): Promise<void> {
-        if (this.resolution < 15 && this.rtree.all().length > SPLIT_TRESHOLED) {
+        if (!this.isRetired && this.resolution < 15 && this.count > (this.resolution + 1) * SPLIT_TRESHOLED) {
+            const client = this.getDaprClient();
+            const builder = new ActorProxyBuilder<DistributedIndexInterface>(DistributedIndexImpl, client);
             this.isRetired = true
             const payload: UpdateData = {
                 mother: this.getActorId().getId(),
@@ -124,20 +164,17 @@ export default class DistributedIndexImpl extends AbstractActor implements Distr
                     }
                 })
             })
-            for (let partition in buckets) {
-                const data = buckets[partition];
+            for (let partitionID in buckets) {
+                const data = buckets[partitionID];
                 if (data.length > 0) {
-                    this.getDaprClient()
-                        .actor
-                        .create<DistributedIndexInterface>(DistributedIndexImpl)
-                        .bulkLoadInternal(data)
-                        .catch(err => {
-                            console.error(err);
-                        })
+                    const actor = builder.build(new ActorId(partitionID))
+                    // await actor.bulkLoadInternal(data);
+                    actor.bulkLoadInternal(data).catch(err=>{console.log(err)});
                 }
             }
             return;
         }
+        return;
     }
 
     async query(bbox: BBox): Promise<Array<string>> {
