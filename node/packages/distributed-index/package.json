@@ -5,6 +5,9 @@
   "main": "index.js",
   "scripts": {
     "serve": "dapr run --app-id distributed-index --app-protocol http --app-port 3001 --dapr-http-port 3000 --dapr-http-max-request-size 1024 --config ../../../config.yaml --components-path ../../../components -- esno ./src/index.ts",
+    "serve1": "DAPR_PORT=\"13000\" SERVER_PORT=\"13001\" dapr run --app-id distributed-index --app-protocol http --app-port 13001 --dapr-http-port 13000 --dapr-http-max-request-size 1024 --config ../../../config.yaml --components-path ../../../components -- esno ./src/index.ts",
+    "serve2": "DAPR_PORT=\"23000\" SERVER_PORT=\"23001\" dapr run --app-id distributed-index --app-protocol http --app-port 23001 --dapr-http-port 23000 --dapr-http-max-request-size 1024 --config ../../../config.yaml --components-path ../../../components -- esno ./src/index.ts",
+    "serve3": "DAPR_PORT=\"33000\" SERVER_PORT=\"33001\" dapr run --app-id distributed-index --app-protocol http --app-port 33001 --dapr-http-port 33000 --dapr-http-max-request-size 1024 --config ../../../config.yaml --components-path ../../../components -- esno ./src/index.ts",
     "check": "tsc -p ./tsconfig.json --noEmit ",
     "test": "echo \"Error: no test specified\" && exit 1"
   },

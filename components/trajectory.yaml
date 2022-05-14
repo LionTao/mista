@@ -7,7 +7,7 @@ spec:
   version: v1
   metadata:
   - name: host
-    value: host.docker.internal:49153 # Required unless "server" field is set . Example: "mongo-mongodb.default.svc.cluster.local:27017"
+    value: 192.168.0.54:49153 # Required unless "server" field is set . Example: "mongo-mongodb.default.svc.cluster.local:27017"
   - name: username
     value: docker # Optional. Example: "admin"
   - name: password

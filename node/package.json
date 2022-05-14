@@ -4,12 +4,30 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "serve:distributed-index": "esno ./packages/distributed-index/src/index.ts",
+    "serve:ingress": "esno ./packages/ingress/src/index.ts",
+    "serve:pns-daemon": "esno ./packages/pns-daemon/src/index.ts",
+    "serve:query-service": "esno ./packages/query-service/src/index.ts",
+    "serve:trajectory-assembler": "esno ./packages/trajectory-assembler/src/index.ts",
+
+    "dev:ingress": "dapr run --app-id ingress  --app-max-concurrency 1000 --app-protocol http --app-port 3003 --dapr-http-port 3002 --dapr-http-max-request-size 1024 --config ../config.yaml --components-path ../components -- esno ./packages/ingress/src/index.ts",
+    "dev:pns-daemon": "dapr run --app-id pns-daemon --app-protocol http --app-port 3005 --dapr-http-port 3004 --dapr-http-max-request-size 1024 --config ../config.yaml --components-path ../components -- esno ./packages/pns-daemon/src/index.ts",
+    "dev:query-service": "dapr run --app-id query-service --app-protocol http --app-port 3007 --dapr-http-port 3006 --dapr-http-max-request-size 1024 --config ../config.yaml --components-path ../components -- esno ./packages/query-service/src/index.ts",
+    "dev:trajectory-assembler:0": "DAPR_PORT=\"3008\" SERVER_PORT=\"3009\" dapr run --app-id trajectory-assembler  --app-max-concurrency 1000 --app-protocol http --app-port 3009 --dapr-http-port 3008 --dapr-http-max-request-size 1024 --config ../config.yaml --components-path ../components -- esno ./packages/trajectory-assembler/src/index.ts",
+    "dev:trajectory-assembler:1": "DAPR_PORT=\"13008\" SERVER_PORT=\"13009\" dapr run --app-id trajectory-assembler  --app-max-concurrency 1000 --app-protocol http --app-port 13009 --dapr-http-port 13008 --dapr-http-max-request-size 1024 --config ../config.yaml --components-path ../components -- esno ./packages/trajectory-assembler/src/index.ts",
+    "dev:trajectory-assembler:2": "DAPR_PORT=\"23008\" SERVER_PORT=\"23009\" dapr run --app-id trajectory-assembler  --app-max-concurrency 1000 --app-protocol http --app-port 23009 --dapr-http-port 23008 --dapr-http-max-request-size 1024 --config ../config.yaml --components-path ../components -- esno ./packages/trajectory-assembler/src/index.ts",
+    "dev:trajectory-assembler:3": "DAPR_PORT=\"33008\" SERVER_PORT=\"33009\" dapr run --app-id trajectory-assembler  --app-max-concurrency 1000 --app-protocol http --app-port 33009 --dapr-http-port 33008 --dapr-http-max-request-size 1024 --config ../config.yaml --components-path ../components -- esno ./packages/trajectory-assembler/src/index.ts",
+    "dev:distributed-index:0": "dapr run --app-id distributed-index --app-protocol http --app-port 3001 --dapr-http-port 3000 --dapr-http-max-request-size 1024 --config ../config.yaml --components-path ../components -- esno ./packages/distributed-index/src/index.ts",
+    "dev:distributed-index:1": "DAPR_PORT=\"13000\" SERVER_PORT=\"13001\" dapr run --app-id distributed-index --app-protocol http --app-port 13001 --dapr-http-port 13000 --dapr-http-max-request-size 1024 --config ../config.yaml --components-path ../components -- esno ./packages/distributed-index/src/index.ts",
+    "dev:distributed-index:2": "DAPR_PORT=\"23000\" SERVER_PORT=\"23001\" dapr run --app-id distributed-index --app-protocol http --app-port 23001 --dapr-http-port 23000 --dapr-http-max-request-size 1024 --config ../config.yaml --components-path ../components -- esno ./packages/distributed-index/src/index.ts",
+    "dev:distributed-index:3": "DAPR_PORT=\"33000\" SERVER_PORT=\"33001\" dapr run --app-id distributed-index --app-protocol http --app-port 33001 --dapr-http-port 33000 --dapr-http-max-request-size 1024 --config ../config.yaml --components-path ../components -- esno ./packages/distributed-index/src/index.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "LionTao <jctao31@stu.suda.edu.cn>",
   "license": "MIT",
   "dependencies": {
     "dapr-client": "2.1.0",
+    "esno": "^0.14.1",
     "h3-js": "^3.7.2",
     "lodash-es": "^4.17.21",
     "proj4": "^2.8.0",
@@ -21,7 +39,6 @@
     "@types/node": "16",
     "@types/proj4": "^2.5.2",
     "@types/rbush": "^3.0.0",
-    "esno": "^0.14.1",
     "typescript": "^4.6.4"
   }
 }

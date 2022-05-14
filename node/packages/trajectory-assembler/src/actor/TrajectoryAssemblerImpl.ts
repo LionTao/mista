@@ -12,12 +12,13 @@ import RWLock from "async-rwlock";
 import ActorProxyBuilder from "dapr-client/actors/client/ActorProxyBuilder";
 import ActorId from "dapr-client/actors/ActorId";
 import console from "console";
-import { pointDist } from "h3-js"
+import { geoToH3, pointDist } from "h3-js"
 
 
 const TRAJETORY_STORE_NAME = "trajectory";
 const pnsDaemonAppName = "pns-daemon";
 const pndAppMethodName = "query";
+const comporessionLevel= 15;
 
 export default class TrajectoryAssemblerImpl extends AbstractActor implements TrajectoryAssemblerInterface {
     private PNS: RBush<PNSEntry>;
@@ -50,10 +51,12 @@ export default class TrajectoryAssemblerImpl extends AbstractActor implements Tr
             const newSegment: Segment = {
                 id: this.getActorId().getId(),
                 start: this.previousPoint,
-                end: p
+                end: p,
+                startRegionID:geoToH3(this.previousPoint.lat,this.previousPoint.lng,comporessionLevel),
+                endRegionID:geoToH3(p.lat,p.lng,comporessionLevel)
             }
             // send to index
-            await this.sendSegment(newSegment);
+            this.sendSegment(newSegment).catch(err=>console.error(err));
         } else {
             console.log(`${this.getActorId().getId()}nice to meet you!`);
         }

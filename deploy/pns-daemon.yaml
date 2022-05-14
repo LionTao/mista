@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pns-daemon
+  labels:
+    app: pns-daemon
+  namespace: mista
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pns-daemon
+  template:
+    metadata:
+      labels:
+        app: pns-daemon
+      annotations:
+        dapr.io/enabled: "true"
+        dapr.io/app-id: "pns-daemon"
+        dapr.io/app-port: "3005"
+    spec:
+      containers:
+      - name: pns-daemon
+        image: liontao/mista-node:1.0
+        command: ["pnpm"]
+        args: ["run", "serve:pns-daemon"]
+        ports:
+        - containerPort: 3005
+        imagePullPolicy: Always

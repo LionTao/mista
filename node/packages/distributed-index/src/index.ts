@@ -4,9 +4,9 @@ import ActorRuntimeConfig from "dapr-client/actors/runtime/ActorRuntimeConfig";
 import DistributedIndexImpl from "./actor/DistributedIndexImpl";
 
 const daprHost = "127.0.0.1";
-const daprPort = "3000"; // Dapr Sidecar Port of this Example Server
+const daprPort = process.env.DAPR_PORT || "3000"; // Dapr Sidecar Port of this Example Server
 const serverHost = "127.0.0.1"; // App Host of this Example Server
-const serverPort = "3001"; // App Port of this Example Server
+const serverPort = process.env.SERVER_PORT || "3001"; // App Port of this Example Server
 
 async function start() {
     const server = new DaprServer(serverHost, serverPort, daprHost, daprPort);

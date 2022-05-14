@@ -28,6 +28,7 @@ export default class DistributedIndexImpl extends AbstractActor implements Distr
     resolution: number;
     children: Array<string>;
     count: number;
+    invertedIndex: Map<string, Array<string>>;
     lock: RWLock;
 
     constructor(daprClient: DaprClient, id: ActorId) {
@@ -38,22 +39,30 @@ export default class DistributedIndexImpl extends AbstractActor implements Distr
         this.children = [];
         this.count = 0;
         this.lock = new RWLock();
+        this.invertedIndex = new Map<string, Array<string>>();
     }
 
     async onActivate(): Promise<void> {
         const [hasRtree, rtreeJSON] = await this.getStateManager().tryGetState("rtree");
         this.rtree = hasRtree ? new RBush<IndexRBushEntry>().fromJSON(rtreeJSON) : new RBush<IndexRBushEntry>();
+
         // const [hasBuffer, bufferData] = await this.getStateManager().tryGetState("buffer");
         // this.buffer = hasBuffer ? bufferData : new Array<Segment>();
+
         const [hasCount, countData] = await this.getStateManager().tryGetState("count");
         this.count = hasCount ? countData : 0;
+
         const [hasRetired, retiredFlag] = await this.getStateManager().tryGetState("retired");
         this.isRetired = hasRetired ? retiredFlag : false;
+
+        const [hasinvertedIndex, invertedIndexData] = await this.getStateManager().tryGetState("invertedIndex");
+        this.invertedIndex = hasinvertedIndex ? invertedIndexData : new Map<string, Array<string>>();
+
         this.resolution = h3GetResolution(this.getActorId().getId());
         this.children = this.resolution < 15 ?
             kRing(h3ToCenterChild(this.getActorId().getId(), this.resolution + 1), 2) : [];
         this.lock = new RWLock();
-        console.log(`${this.getActorId().getId()} activated`);
+        console.log(`${this.getActorId().getId()}, level: ${this.resolution}, activated`);
     }
 
     async onDeactivate(): Promise<void> {
@@ -61,11 +70,13 @@ export default class DistributedIndexImpl extends AbstractActor implements Distr
         if (this.rtree && this.count > 0) {
             await stateManager.setState("rtree", this.rtree.toJSON());
             await stateManager.setState("count", this.count);
+            await stateManager.setState("invertedIndex", this.invertedIndex);
         }
         // if (this.buffer.length > 0) {
         //     await stateManager.setState("buffer", this.buffer);
         // }
         await stateManager.setState("retired", this.isRetired);
+        console.log(`${this.getActorId().getId()}, level: ${this.resolution}, deactivated`);
     }
 
     /**
@@ -85,7 +96,7 @@ export default class DistributedIndexImpl extends AbstractActor implements Distr
                 // actor.acceptNewSegment(s).catch(err => {
                 //     console.error(err)
                 // });
-                actor.acceptNewSegment(s).catch(err=>{console.log(err)});
+                actor.acceptNewSegment(s).catch(err => { console.log(err) });
             });
             return false;
         }
@@ -126,7 +137,7 @@ export default class DistributedIndexImpl extends AbstractActor implements Distr
                 const data = buckets[partitionID];
                 if (data.length > 0) {
                     const actor = builder.build(new ActorId(partitionID))
-                    actor.bulkLoadInternal(data).catch(err=>{console.log(err)});
+                    actor.bulkLoadInternal(data).catch(err => { console.log(err) });
                 }
             }
             return;
@@ -136,13 +147,13 @@ export default class DistributedIndexImpl extends AbstractActor implements Distr
         }
         await this.lock.writeLock();
         this.rtree = this.rtree.load(segments.map(this.segmentToRBushEntry));
-        this.count+=segments.length;
+        this.count += segments.length;
         this.lock.unlock();
         return;
     }
 
     async onActorMethodPost(): Promise<void> {
-        if (!this.isRetired && this.resolution < 15 && this.count > (this.resolution + 1) * SPLIT_TRESHOLED) {
+        if (!this.isRetired && this.resolution < 15 && this.count > (this.resolution + 1) * 0.5 * SPLIT_TRESHOLED) {
             const client = this.getDaprClient();
             const builder = new ActorProxyBuilder<DistributedIndexInterface>(DistributedIndexImpl, client);
             this.isRetired = true
@@ -150,7 +161,7 @@ export default class DistributedIndexImpl extends AbstractActor implements Distr
                 mother: this.getActorId().getId(),
                 children: this.children
             }
-            await this.getDaprClient().invoker.invoke(pnsDaemonAppName, pndAppMethodName, HttpMethod.POST, payload)
+            this.getDaprClient().invoker.invoke(pnsDaemonAppName, pndAppMethodName, HttpMethod.POST, payload).catch(err => console.error(err));
             // 分派下一层分区
             const buckets = Array<Array<Segment>>();
             for (let i in this.children) {
@@ -169,7 +180,7 @@ export default class DistributedIndexImpl extends AbstractActor implements Distr
                 if (data.length > 0) {
                     const actor = builder.build(new ActorId(partitionID))
                     // await actor.bulkLoadInternal(data);
-                    actor.bulkLoadInternal(data).catch(err=>{console.log(err)});
+                    actor.bulkLoadInternal(data).catch(err => { console.log(err) });
                 }
             }
             return;

@@ -52,7 +52,7 @@ async function start() {
         const jsonString = isNil(data.body) ? "" : data.body;
         return await update(JSON.parse(jsonString));
     }, {method: HttpMethod.POST});
-    await server.invoker.listen("query", () => query(), {method: HttpMethod.GET});
+    await server.invoker.listen("query", async () => await query(), {method: HttpMethod.GET});
 
     await server.start();
 }
