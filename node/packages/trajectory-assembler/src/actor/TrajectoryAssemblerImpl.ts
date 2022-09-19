@@ -56,7 +56,17 @@ export default class TrajectoryAssemblerImpl extends AbstractActor implements Tr
                 endRegionID:geoToH3(p.lat,p.lng,comporessionLevel)
             }
             // send to index
-            this.sendSegment(newSegment).catch(err=>console.error(err));
+            while (true){
+                let c=0;
+                try {
+                    await this.sendSegment(newSegment);
+                    break;
+                } catch(e){
+                    ++c;
+                    if (c%3===0)console.warn("Sending segment failed ",c," times, wait 500ms and retry");
+                    await new Promise(resolve=>setTimeout(resolve,500));
+                }
+            }
         } else {
             console.log(`${this.getActorId().getId()}nice to meet you!`);
         }

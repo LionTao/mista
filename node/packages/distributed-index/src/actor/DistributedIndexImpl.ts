@@ -12,7 +12,8 @@ import ActorId from "dapr-client/actors/ActorId";
 import { UpdateData } from "@mista/pns-daemon/src";
 import RWLock from "async-rwlock";
 
-const SPLIT_TRESHOLED = 500;
+const SPLIT_TRESHOLED = 7000;
+const MAX_ENTRY = 50;
 
 const pnsDaemonAppName = "pns-daemon";
 const pndAppMethodName = "update";
@@ -33,7 +34,7 @@ export default class DistributedIndexImpl extends AbstractActor implements Distr
 
     constructor(daprClient: DaprClient, id: ActorId) {
         super(daprClient, id);
-        this.rtree = new RBush<IndexRBushEntry>();
+        this.rtree = new RBush<IndexRBushEntry>(MAX_ENTRY);
         this.isRetired = false;
         this.resolution = 16;
         this.children = [];
@@ -44,7 +45,7 @@ export default class DistributedIndexImpl extends AbstractActor implements Distr
 
     async onActivate(): Promise<void> {
         const [hasRtree, rtreeJSON] = await this.getStateManager().tryGetState("rtree");
-        this.rtree = hasRtree ? new RBush<IndexRBushEntry>().fromJSON(rtreeJSON) : new RBush<IndexRBushEntry>();
+        this.rtree = hasRtree ? new RBush<IndexRBushEntry>(MAX_ENTRY).fromJSON(rtreeJSON) : new RBush<IndexRBushEntry>(MAX_ENTRY);
 
         // const [hasBuffer, bufferData] = await this.getStateManager().tryGetState("buffer");
         // this.buffer = hasBuffer ? bufferData : new Array<Segment>();
@@ -96,7 +97,17 @@ export default class DistributedIndexImpl extends AbstractActor implements Distr
                 // actor.acceptNewSegment(s).catch(err => {
                 //     console.error(err)
                 // });
-                actor.acceptNewSegment(s).catch(err => { console.log(err) });
+                while (true){
+                    let c=0;
+                    try {
+                        await actor.acceptNewSegment(s);
+                        break;
+                    } catch (e) {
+                        ++c;
+                        if (c%3===0)console.warn("Sending to ",t,"failed ",c," times, wait 500ms and retry");
+                        await new Promise(resolve=>setTimeout(resolve,500));
+                    }
+                }
             });
             return false;
         }
@@ -153,7 +164,7 @@ export default class DistributedIndexImpl extends AbstractActor implements Distr
     }
 
     async onActorMethodPost(): Promise<void> {
-        if (!this.isRetired && this.resolution < 15 && this.count > (this.resolution + 1) * 0.5 * SPLIT_TRESHOLED) {
+        if (!this.isRetired && this.resolution < 15 && this.count > SPLIT_TRESHOLED) {
             const client = this.getDaprClient();
             const builder = new ActorProxyBuilder<DistributedIndexInterface>(DistributedIndexImpl, client);
             this.isRetired = true
@@ -162,27 +173,27 @@ export default class DistributedIndexImpl extends AbstractActor implements Distr
                 children: this.children
             }
             this.getDaprClient().invoker.invoke(pnsDaemonAppName, pndAppMethodName, HttpMethod.POST, payload).catch(err => console.error(err));
-            // 分派下一层分区
-            const buckets = Array<Array<Segment>>();
-            for (let i in this.children) {
-                buckets[i] = Array<Segment>();
-            }
-            this.rtree.all().forEach(entry => {
-                entry.nextH3.forEach(i => {
-                    if (i in buckets.keys()) {
-                        // @ts-ignore
-                        buckets[i].push(entry.segment);
-                    }
-                })
-            })
-            for (let partitionID in buckets) {
-                const data = buckets[partitionID];
-                if (data.length > 0) {
-                    const actor = builder.build(new ActorId(partitionID))
-                    // await actor.bulkLoadInternal(data);
-                    actor.bulkLoadInternal(data).catch(err => { console.log(err) });
-                }
-            }
+            // // 分派下一层分区
+            // const buckets = Array<Array<Segment>>();
+            // for (let i in this.children) {
+            //     buckets[i] = Array<Segment>();
+            // }
+            // this.rtree.all().forEach(entry => {
+            //     entry.nextH3.forEach(i => {
+            //         if (i in buckets.keys()) {
+            //             // @ts-ignore
+            //             buckets[i].push(entry.segment);
+            //         }
+            //     })
+            // })
+            // for (let partitionID in buckets) {
+            //     const data = buckets[partitionID];
+            //     if (data.length > 0) {
+            //         const actor = builder.build(new ActorId(partitionID))
+            //         // await actor.bulkLoadInternal(data);
+            //         actor.bulkLoadInternal(data).catch(err => { console.log(err) });
+            //     }
+            // }
             return;
         }
         return;

@@ -1,0 +1,77 @@
+version: "3.8"
+services:
+  sender0:
+    image: mista:latest
+    command: pnpm run dev:ingress
+    volumes:
+      - /home/liontao/data/tdrive/part_0.txt:/home/liontao/work/mista/data/all-100.txt
+    networks:
+      - hello-dapr
+  sender1:
+    image: mista:latest
+    command: pnpm run dev:ingress
+    volumes:
+      - /home/liontao/data/tdrive/part_1.txt:/home/liontao/work/mista/data/all-100.txt
+    networks:
+      - hello-dapr
+  sender2:
+    image: mista:latest
+    command: pnpm run dev:ingress
+    volumes:
+      - /home/liontao/data/tdrive/part_2.txt:/home/liontao/work/mista/data/all-100.txt
+    networks:
+      - hello-dapr
+
+  sender3:
+    image: mista:latest
+    command: pnpm run dev:ingress
+    volumes:
+      - /home/liontao/data/tdrive/part_3.txt:/home/liontao/work/mista/data/all-100.txt
+    networks:
+      - hello-dapr
+
+  sender4:
+    image: mista:latest
+    command: pnpm run dev:ingress
+    volumes:
+      - /home/liontao/data/tdrive/part_4.txt:/home/liontao/work/mista/data/all-100.txt
+    networks:
+      - hello-dapr
+  sender5:
+    image: mista:latest
+    command: pnpm run dev:ingress
+    volumes:
+      - /home/liontao/data/tdrive/part_5.txt:/home/liontao/work/mista/data/all-100.txt
+    networks:
+      - hello-dapr
+  sender6:
+    image: mista:latest
+    command: pnpm run dev:ingress
+    volumes:
+      - /home/liontao/data/tdrive/part_6.txt:/home/liontao/work/mista/data/all-100.txt
+    networks:
+      - hello-dapr
+  sender7:
+    image: mista:latest
+    command: pnpm run dev:ingress
+    volumes:
+      - /home/liontao/data/tdrive/part_7.txt:/home/liontao/work/mista/data/all-100.txt
+    networks:
+      - hello-dapr
+  sender8:
+    image: mista:latest
+    command: pnpm run dev:ingress
+    volumes:
+      - /home/liontao/data/tdrive/part_8.txt:/home/liontao/work/mista/data/all-100.txt
+    networks:
+      - hello-dapr
+  sender9:
+    image: mista:latest
+    command: pnpm run dev:ingress
+    volumes:
+      - /home/liontao/data/tdrive/part_9.txt:/home/liontao/work/mista/data/all-100.txt
+    networks:
+      - hello-dapr
+networks:
+ hello-dapr:
+    name: node_hello-dapr

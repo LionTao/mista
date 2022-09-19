@@ -24,7 +24,7 @@ export interface UpdateData {
 async function update(data: UpdateData): Promise<void> {
     const before = regionBook.size
     await lock.writeLock();
-    regionBook.delete(data.mother);
+    // regionBook.delete(data.mother);
     nursingHome.add(data.mother);
     data.children.filter(r=>!nursingHome.has(r)).forEach(r=>regionBook.add(r));
     rtree = new RBush<PNSEntry>().load(Array.from(regionBook).map(h3ToBBox));

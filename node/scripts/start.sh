@@ -1,7 +1,7 @@
 #!/bin/bash
 touch pid
-pnpm run dev:ingress >"logs/ingress.log" 2>&1 &
-  echo $! >>pid
+#pnpm run dev:ingress >"logs/ingress.log" 2>&1 &
+#  echo $! >>pid
 pnpm run dev:pns-daemon >"logs/pns-daemon.log" 2>&1 &
   echo $! >>pid
 pnpm run dev:query-service >"logs/query-service.log" 2>&1 &

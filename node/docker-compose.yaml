@@ -1,0 +1,105 @@
+version: "3.8"
+services:
+  pns-daemon:
+    image: mista:latest
+    restart: always
+    command: pnpm run dev:pns-daemon
+    environment:
+      - NODE_OPTIONS=--max-old-space-size=51200
+    # ports:
+    #   - 3005:3005
+    #   - 3004:3004
+    networks:
+      - hello-dapr
+  
+  
+  query-service:
+    image: mista:latest
+    restart: always
+    command: pnpm run dev:query-service
+    environment:
+      - NODE_OPTIONS=--max-old-space-size=51200
+    # ports:
+    #   - 3007:3007
+    #   - 3006:3006
+    networks:
+      - hello-dapr
+  
+  trajectory-assembler0:
+    image: mista:latest
+    restart: always
+    command: pnpm run dev:trajectory-assembler:0
+    environment:
+      - NODE_OPTIONS=--max-old-space-size=51200
+    # ports:
+    #   - 3008:3008
+      # - 3009:3009
+    networks:
+      - hello-dapr
+  # trajectory-assembler1:
+  #   image: mista:latest
+  #   restart: always
+  #   command: pnpm run dev:trajectory-assembler:1
+  #   ports:
+  #   #   - 13008:13008
+  #     - 13009:13009
+  #   networks:
+  #     - hello-dapr
+  # trajectory-assembler2:
+  #   image: mista:latest
+  #   restart: always
+  #   command: pnpm run dev:trajectory-assembler:2
+  #   ports:
+  #   #   - 23008:23008
+  #     - 23009:23009
+  #   networks:
+  #     - hello-dapr
+  # trajectory-assembler3:
+  #   image: mista:latest
+  #   restart: always
+  #   command: pnpm run dev:trajectory-assembler:3
+  #   ports:
+  #   #   - 33008:33008
+  #     - 33009:33009
+  #   networks:
+  #     - hello-dapr
+  distributed-index0:
+    image: mista:latest
+    restart: always
+    command: pnpm run dev:distributed-index:0
+    environment:
+      - NODE_OPTIONS=--max-old-space-size=51200
+    # ports:
+    #   - 3001:3001
+      # - 3000:3000
+    networks:
+      - hello-dapr
+#   distributed-index1:
+#     image: mista:latest
+#     restart: always
+#     command: pnpm run dev:distributed-index:1
+#     # ports:
+#     #   - 13001:13001
+#     #   - 13000:13000
+#     networks:
+#       - hello-dapr
+#   distributed-index2:
+#     image: mista:latest
+#     restart: always
+#     command: pnpm run dev:distributed-index:2
+#     # ports:
+#     #   - 23001:23001
+#     #   - 23000:23000
+#     networks:
+#       - hello-dapr
+#   distributed-index3:
+#     image: mista:latest
+#     restart: always
+#     command: pnpm run dev:distributed-index:3
+#     # ports:
+#     #   - 33001:33001
+#     #   - 33000:33000
+#     networks:
+#       - hello-dapr
+networks:
+    hello-dapr: null

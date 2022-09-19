@@ -35,7 +35,7 @@ def str_to_TrajectoryPoint(s: str) -> TrajectoryPoint:
 
 
 def main():
-    client = KafkaProducer(bootstrap_servers=["192.168.0.54:9092"])
+    client = KafkaProducer(bootstrap_servers=["192.168.0.55:9092"])
     with open("/home/liontao/work/mista/data/all.txt") as fp:
         s = fp.readline()    
         while s:

@@ -19,7 +19,7 @@ services:
       - KAFKA_BROKER_ID=1
       - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092
       # 客户端访问地址，更换成自己的
-      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://192.168.0.54:9092
+      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://192.168.0.55:9092
       - KAFKA_CFG_ZOOKEEPER_CONNECT=zookeeper:2181
       # 允许使用PLAINTEXT协议(镜像中默认为关闭,需要手动开启)
       - ALLOW_PLAINTEXT_LISTENER=yes
@@ -43,3 +43,25 @@ services:
       - KAFKA_CLUSTERS_0_NAME=local
       - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=kafka:9092
       - KAFKA_CLUSTERS_0_ZOOKEEPER=zookeeper:2181
+  mongodb:
+    image: mongo:5.0
+    ports:
+      - 49153:27017
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=docker
+      - MONGO_INITDB_ROOT_PASSWORD=mongopw
+  placement:
+    image: "daprio/dapr"
+    command: ["./placement", "--port", "50006"]
+    ports:
+      - "50006:50006"
+  redis:
+    image: 'bitnami/redis:latest'
+    environment:
+      - ALLOW_EMPTY_PASSWORD=yes
+    ports:
+      - 6379:6379
+  jaeger:
+    image: jaegertracing/all-in-one:1.38
+    ports:
+      - 9412:9411

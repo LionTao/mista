@@ -34,18 +34,32 @@ async function sendLocalFile() {
     await server.start();
 
     try {
-        const data = fs.readFileSync('/home/liontao/work/mista/data/all.txt', 'utf8');
+
+        const data = fs.readFileSync('/home/liontao/work/mista/data/all-100.txt', 'utf8');
+        console.time("time");
+        let counter=0;
+        const builder = new ActorProxyBuilder<TrajectoryAssemblerInterface>(TrajectoryAssemblerImpl, client);
         for (let line of data.split(/\r?\n/)) {
             if (line === "") {
                 continue;
             }
-
-            const builder = new ActorProxyBuilder<TrajectoryAssemblerInterface>(TrajectoryAssemblerImpl, client);
             const p = strToPoint(line);
             const actor = builder.build(new ActorId(p.id));
-            await actor.acceptNewPoint(p);
+            while (true) {
+                let c=0;
+                try{
+                    await actor.acceptNewPoint(p);
+                    break;
+                } catch (err){
+                    ++c;
+                    if (c%5===0){console.log("retry:",c);}
+                    await new Promise(resolve=>setTimeout(resolve,500));
+                }
+            }
+            counter=counter+1;
         }
-        console.log("end");
+        console.timeEnd("time");
+        console.log("end",counter);
     } catch (err) {
         console.error(err)
     }
@@ -73,7 +87,7 @@ async function start() {
     // await client.pubsub.publish("mykafka", "point", { hello: "world" });
 }
 
-start().catch((e) => {
+sendLocalFile().catch((e) => {
     console.error(e);
     process.exit(1);
 });
